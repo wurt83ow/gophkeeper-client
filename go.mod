@@ -4,6 +4,7 @@ go 1.21.1
 
 require (
 	github.com/chzyer/readline v1.5.1
+	github.com/mattn/go-sqlite3 v1.14.19
 	github.com/spf13/cobra v1.8.0
 )
 
