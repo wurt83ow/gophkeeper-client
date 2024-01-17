@@ -9,8 +9,10 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/chzyer/readline"
+	"github.com/spf13/cobra"
 )
 
 type GophKeeper struct {
@@ -23,6 +25,41 @@ func NewGophKeeper() *GophKeeper {
 		log.Fatal(err)
 	}
 	return &GophKeeper{rl: rl}
+}
+
+func (gk *GophKeeper) Start() {
+	rootCmd := &cobra.Command{
+		Use:   "gophkeeper",
+		Short: "GophKeeper is a secure password manager",
+	}
+	var cmdAdd = &cobra.Command{
+		Use:   "add",
+		Short: "Add a new entry",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("Choose data type:")
+			fmt.Println("1. Login/Password")
+			fmt.Println("2. Text data")
+			fmt.Println("3. Binary data")
+			fmt.Println("4. Bank card data")
+
+			line, _ := gk.rl.Readline()
+			switch strings.TrimSpace(line) {
+			case "1":
+				gk.addLoginPassword()
+			case "2":
+				gk.addTextData()
+			case "3":
+				gk.addBinaryData()
+			case "4":
+				gk.addBankCardData()
+			default:
+				fmt.Println("Invalid choice")
+			}
+		},
+	}
+
+	rootCmd.AddCommand(cmdAdd)
+	rootCmd.Execute()
 }
 
 func (gk *GophKeeper) Close() {
@@ -64,7 +101,7 @@ func (gk *GophKeeper) addBinaryData() {
 		}
 
 		// Encrypt the data
-		block, err := aes.NewCipher([]byte("example key 1234")) // Replace with your 16, 24, or 32 byte key
+		block, err := aes.NewCipher([]byte("example key 1234")) // Replace with 16, 24, or 32 byte key
 		if err != nil {
 			log.Fatalf("Failed to create cipher: %s", err)
 		}
