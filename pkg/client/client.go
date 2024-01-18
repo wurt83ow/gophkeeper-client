@@ -13,19 +13,23 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/spf13/cobra"
+	"github.com/wurt83ow/gophkeeper-client/pkg/storage"
 )
 
 type GophKeeper struct {
-	rl *readline.Instance
+	rl      *readline.Instance
+	storage *storage.Storage
 }
 
-func NewGophKeeper() *GophKeeper {
+func NewGophKeeper(storage *storage.Storage) *GophKeeper {
 	rl, err := readline.New("> ")
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &GophKeeper{rl: rl}
+	return &GophKeeper{rl: rl, storage: storage}
 }
+
+var user_id int = 1 //Заменить на правильный!!!
 
 func (gk *GophKeeper) Start() {
 	rootCmd := &cobra.Command{
@@ -73,6 +77,11 @@ func (gk *GophKeeper) addLoginPassword() {
 	gk.rl.Config.EnableMask = true
 	password, _ := gk.rl.Readline()
 	gk.rl.Config.EnableMask = false
+	data := map[string]string{
+		"login":    login,
+		"password": password,
+	}
+	gk.storage.AddData(user_id, "UserCredentials", data)
 	fmt.Printf("Login: %s, Password: %s\n", login, password)
 	fmt.Println("Data added successfully!")
 }
@@ -82,6 +91,11 @@ func (gk *GophKeeper) addTextData() {
 	title, _ := gk.rl.Readline()
 	gk.rl.SetPrompt("Enter text data: ")
 	text, _ := gk.rl.Readline()
+	data := map[string]string{
+		"data":      text,
+		"meta_info": title,
+	}
+	gk.storage.AddData(user_id, "TextData", data)
 	fmt.Printf("Title: %s, Text: %s\n", title, text)
 	fmt.Println("Data added successfully!")
 }
@@ -121,6 +135,11 @@ func (gk *GophKeeper) addBinaryData() {
 			log.Fatalf("Failed to write file: %s", err)
 		}
 
+		fileData := map[string]string{
+			"path":      filePath,
+			"meta_info": title,
+		}
+		gk.storage.AddData(user_id, "FilesData", fileData)
 		fmt.Printf("Title: %s, File: %s\n", title, filePath)
 		fmt.Println("Data added successfully!")
 	}
@@ -165,6 +184,13 @@ func (gk *GophKeeper) addBankCardData() {
 		}
 	}
 
+	cardData := map[string]string{
+		"card_number":     cardNumber,
+		"expiration_date": expiryDate,
+		"cvv":             cvv,
+		"meta_info":       title,
+	}
+	gk.storage.AddData(user_id, "CreditCardData", cardData)
 	fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n", title, cardNumber, expiryDate, cvv)
 	fmt.Println("Data added successfully!")
 }

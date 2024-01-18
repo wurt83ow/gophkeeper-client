@@ -2,6 +2,8 @@ package bdkeeper
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -19,44 +21,68 @@ func New() *Keeper {
 		db: db,
 	}
 }
-
-func (k *Keeper) AddData(key string, value string) {
-	stmt, _ := k.db.Prepare("INSERT INTO data(key, value) values(?,?)")
-	stmt.Exec(key, value)
+func (k *Keeper) AddData(user_id int, table string, data map[string]string) {
+	keys := make([]string, 0, len(data))
+	values := make([]interface{}, 0, len(data))
+	for key, value := range data {
+		keys = append(keys, key)
+		values = append(values, value)
+	}
+	stmt, _ := k.db.Prepare(fmt.Sprintf("INSERT INTO %s(%s) values(%s)", table, strings.Join(keys, ","), strings.Repeat("?,", len(keys)-1)+"?"))
+	stmt.Exec(values...)
 }
 
-func (k *Keeper) UpdateData(key string, value string) {
-	stmt, _ := k.db.Prepare("UPDATE data SET value = ? WHERE key = ?")
-	stmt.Exec(value, key)
+func (k *Keeper) UpdateData(user_id int, table string, data map[string]string) {
+	keys := make([]string, 0, len(data))
+	values := make([]interface{}, 0, len(data))
+	for key, value := range data {
+		keys = append(keys, key+" = ?")
+		values = append(values, value)
+	}
+	values = append(values, user_id)
+	stmt, _ := k.db.Prepare(fmt.Sprintf("UPDATE %s SET %s WHERE user_id = ?", table, strings.Join(keys, ",")))
+	stmt.Exec(values...)
 }
 
-func (k *Keeper) DeleteData(key string) {
-	stmt, _ := k.db.Prepare("DELETE FROM data WHERE key = ?")
-	stmt.Exec(key)
+func (k *Keeper) DeleteData(user_id int, table string) {
+	stmt, _ := k.db.Prepare(fmt.Sprintf("DELETE FROM %s WHERE user_id = ?", table))
+	stmt.Exec(user_id)
 }
 
-func (k *Keeper) GetData(key string) string {
-	row := k.db.QueryRow("SELECT value FROM data WHERE key = ?", key)
-	var value string
-	row.Scan(&value)
-	return value
-}
-
-func (k *Keeper) GetAllData() map[string]string {
-	rows, _ := k.db.Query("SELECT key, value FROM data")
-	defer rows.Close()
-
+func (k *Keeper) GetData(user_id int, table string, columns ...string) map[string]string {
+	row := k.db.QueryRow(fmt.Sprintf("SELECT %s FROM %s WHERE user_id = ?", strings.Join(columns, ","), table), user_id)
+	values := make([]interface{}, len(columns))
+	for i := range values {
+		values[i] = new(sql.RawBytes)
+	}
+	row.Scan(values...)
 	data := make(map[string]string)
-	for rows.Next() {
-		var key string
-		var value string
-		rows.Scan(&key, &value)
-		data[key] = value
+	for i, column := range columns {
+		data[column] = string(*values[i].(*sql.RawBytes))
 	}
 	return data
 }
 
-func (k *Keeper) ClearData() {
-	stmt, _ := k.db.Prepare("DELETE FROM data")
+func (k *Keeper) GetAllData(table string, columns ...string) []map[string]string {
+	rows, _ := k.db.Query(fmt.Sprintf("SELECT %s FROM %s", strings.Join(columns, ","), table))
+	defer rows.Close()
+	values := make([]interface{}, len(columns))
+	for i := range values {
+		values[i] = new(sql.RawBytes)
+	}
+	var data []map[string]string
+	for rows.Next() {
+		rows.Scan(values...)
+		row := make(map[string]string)
+		for i, column := range columns {
+			row[column] = string(*values[i].(*sql.RawBytes))
+		}
+		data = append(data, row)
+	}
+	return data
+}
+
+func (k *Keeper) ClearData(table string) {
+	stmt, _ := k.db.Prepare(fmt.Sprintf("DELETE FROM %s", table))
 	stmt.Exec()
 }
