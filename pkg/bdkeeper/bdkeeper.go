@@ -3,9 +3,11 @@ package bdkeeper
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pressly/goose"
 )
 
 type Keeper struct {
@@ -16,6 +18,14 @@ func New() *Keeper {
 	db, err := sql.Open("sqlite3", "./data.db")
 	if err != nil {
 		panic(err)
+	}
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		panic(err)
+	}
+	err = goose.Up(db, "migrations")
+	if err != nil {
+		fmt.Println("888888888888888888888888888888888", err)
+		log.Fatalf("Failed to run migrations: %v", err)
 	}
 	return &Keeper{
 		db: db,
