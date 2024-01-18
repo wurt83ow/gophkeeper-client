@@ -24,7 +24,6 @@ func New() *Keeper {
 	}
 	err = goose.Up(db, "migrations")
 	if err != nil {
-		fmt.Println("888888888888888888888888888888888", err)
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 	return &Keeper{
@@ -73,23 +72,38 @@ func (k *Keeper) GetData(user_id int, table string, columns ...string) map[strin
 	return data
 }
 
-func (k *Keeper) GetAllData(table string, columns ...string) []map[string]string {
-	rows, _ := k.db.Query(fmt.Sprintf("SELECT %s FROM %s", strings.Join(columns, ","), table))
+func (k *Keeper) GetAllData(table string, columns ...string) ([]map[string]string, error) {
+
+	rows, err := k.db.Query(fmt.Sprintf("SELECT %s FROM %s", strings.Join(columns, ","), table))
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
 	defer rows.Close()
+
 	values := make([]interface{}, len(columns))
 	for i := range values {
 		values[i] = new(sql.RawBytes)
 	}
+
 	var data []map[string]string
 	for rows.Next() {
-		rows.Scan(values...)
+		err := rows.Scan(values...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
 		row := make(map[string]string)
 		for i, column := range columns {
 			row[column] = string(*values[i].(*sql.RawBytes))
 		}
 		data = append(data, row)
 	}
-	return data
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows encountered an error: %w", err)
+	}
+
+	return data, nil
 }
 
 func (k *Keeper) ClearData(table string) {

@@ -42,7 +42,7 @@ func (s *Storage) GetData(user_id int, table string, columns ...string) (map[str
 	return nil, false
 }
 
-func (s *Storage) GetAllData(table string, columns ...string) []map[string]string {
+func (s *Storage) GetAllData(table string, columns ...string) ([]map[string]string, error) {
 	return s.keeper.GetAllData(table, columns...)
 }
 

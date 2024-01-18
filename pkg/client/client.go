@@ -62,7 +62,16 @@ func (gk *GophKeeper) Start() {
 		},
 	}
 
+	var cmdList = &cobra.Command{
+		Use:   "list",
+		Short: "List all entries from a chosen table",
+		Run: func(cmd *cobra.Command, args []string) {
+			gk.list()
+		},
+	}
+
 	rootCmd.AddCommand(cmdAdd)
+	rootCmd.AddCommand(cmdList)
 	rootCmd.Execute()
 }
 
@@ -71,19 +80,31 @@ func (gk *GophKeeper) Close() {
 }
 
 func (gk *GophKeeper) addLoginPassword() {
-	gk.rl.SetPrompt("Enter login: ")
-	login, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Enter password: ")
-	gk.rl.Config.EnableMask = true
-	password, _ := gk.rl.Readline()
-	gk.rl.Config.EnableMask = false
-	data := map[string]string{
-		"login":    login,
-		"password": password,
+	for {
+		gk.rl.SetPrompt("Choose a title (meta-information): ")
+		title, _ := gk.rl.Readline()
+		gk.rl.SetPrompt("Enter login: ")
+		login, _ := gk.rl.Readline()
+		gk.rl.SetPrompt("Enter password: ")
+		gk.rl.Config.EnableMask = true
+		password, _ := gk.rl.Readline()
+		gk.rl.Config.EnableMask = false
+		data := map[string]string{
+			"login":     login,
+			"password":  password,
+			"meta_info": title,
+		}
+		gk.storage.AddData(user_id, "UserCredentials", data)
+		fmt.Printf("Login: %s, Password: %s\n", login, password)
+		fmt.Println("Data added successfully!")
+
+		gk.rl.SetPrompt("Do you want to continue adding data? (yes/no): ")
+		choice, _ := gk.rl.Readline()
+		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
+			fmt.Println("9999999999999999999999999999999999999999", choice)
+			break
+		}
 	}
-	gk.storage.AddData(user_id, "UserCredentials", data)
-	fmt.Printf("Login: %s, Password: %s\n", login, password)
-	fmt.Println("Data added successfully!")
 }
 
 func (gk *GophKeeper) addTextData() {
@@ -98,6 +119,39 @@ func (gk *GophKeeper) addTextData() {
 	gk.storage.AddData(user_id, "TextData", data)
 	fmt.Printf("Title: %s, Text: %s\n", title, text)
 	fmt.Println("Data added successfully!")
+}
+
+func (gk *GophKeeper) list() {
+	fmt.Println("Choose data type:")
+	fmt.Println("1. Login/Password")
+	fmt.Println("2. Text data")
+	fmt.Println("3. Binary data")
+	fmt.Println("4. Bank card data")
+
+	line, _ := gk.rl.Readline()
+	var tableName string
+	switch strings.TrimSpace(line) {
+	case "1":
+		tableName = "UserCredentials"
+	case "2":
+		tableName = "CreditCardData"
+	case "3":
+		tableName = "TextData"
+	case "4":
+		tableName = "FilesData"
+	default:
+		fmt.Println("Invalid choice")
+		return
+	}
+
+	data, _ := gk.storage.GetAllData(tableName, "meta_info")
+	if len(data) == 0 {
+		fmt.Println("No entries found in the table:", tableName)
+		return
+	}
+	for i, entry := range data {
+		fmt.Printf("# %d: %s\n", i+1, entry["meta_info"])
+	}
 }
 
 func (gk *GophKeeper) addBinaryData() {
