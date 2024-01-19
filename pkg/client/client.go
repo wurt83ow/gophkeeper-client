@@ -116,18 +116,104 @@ func (gk *GophKeeper) getLoginPassword() {
 	}
 }
 
+func (gk *GophKeeper) getTextData() {
+	printMenu()
+	line, _ := gk.rl.Readline()
+	tableName, valid := getTableNameByChoice(line)
+	if !valid {
+		fmt.Println("Invalid choice")
+		return
+	}
+
+	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
+	if len(data) == 0 {
+		fmt.Println("No entries found in the table:", tableName)
+		return
+	}
+	for _, entry := range data {
+		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+	}
+
+	gk.rl.SetPrompt("Enter the ID of the text data you want to get: ")
+	id, _ := gk.rl.Readline()
+	textData, err := gk.storage.GetData(user_id, tableName, id)
+	if err != nil {
+		fmt.Printf("Failed to get data: %s\n", err)
+	} else {
+		fmt.Printf("Title: %s, Text: %s\n", textData["meta_info"], textData["data"])
+		fmt.Println("Data retrieved successfully!")
+	}
+}
+func (gk *GophKeeper) getBinaryData() {
+	printMenu()
+	line, _ := gk.rl.Readline()
+	tableName, valid := getTableNameByChoice(line)
+	if !valid {
+		fmt.Println("Invalid choice")
+		return
+	}
+
+	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
+	if len(data) == 0 {
+		fmt.Println("No entries found in the table:", tableName)
+		return
+	}
+	for _, entry := range data {
+		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+	}
+
+	gk.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
+	id, _ := gk.rl.Readline()
+	binaryData, err := gk.storage.GetData(user_id, tableName, id)
+	if err != nil {
+		fmt.Printf("Failed to get data: %s\n", err)
+	} else {
+		fmt.Printf("Title: %s, File: %s\n", binaryData["meta_info"], binaryData["path"])
+		fmt.Println("Data retrieved successfully!")
+	}
+}
+
+func (gk *GophKeeper) getBankCardData() {
+	printMenu()
+	line, _ := gk.rl.Readline()
+	tableName, valid := getTableNameByChoice(line)
+	if !valid {
+		fmt.Println("Invalid choice")
+		return
+	}
+
+	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
+	if len(data) == 0 {
+		fmt.Println("No entries found in the table:", tableName)
+		return
+	}
+	for _, entry := range data {
+		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+	}
+
+	gk.rl.SetPrompt("Enter the ID of the bank card data you want to get: ")
+	id, _ := gk.rl.Readline()
+	bankCardData, err := gk.storage.GetData(user_id, tableName, id)
+	if err != nil {
+		fmt.Printf("Failed to get data: %s\n", err)
+	} else {
+		fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n", bankCardData["meta_info"], bankCardData["card_number"], bankCardData["expiration_date"], bankCardData["cvv"])
+		fmt.Println("Data retrieved successfully!")
+	}
+}
+
 func (gk *GophKeeper) getData() {
 	printMenu()
 	line, _ := gk.rl.Readline()
 	switch strings.TrimSpace(line) {
 	case "1":
 		gk.getLoginPassword()
-	// case "2":
-	// 	gk.getTextData()
-	// case "3":
-	// 	gk.getBinaryData()
-	// case "4":
-	// 	gk.getBankCardData()
+	case "2":
+		gk.getTextData()
+	case "3":
+		gk.getBinaryData()
+	case "4":
+		gk.getBankCardData()
 	default:
 		fmt.Println("Invalid choice")
 	}
