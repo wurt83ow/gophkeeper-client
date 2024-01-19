@@ -16,6 +16,7 @@ import (
 	"github.com/wurt83ow/gophkeeper-client/pkg/storage"
 )
 
+type ActionFunc func()
 type GophKeeper struct {
 	rl      *readline.Instance
 	storage *storage.Storage
@@ -29,7 +30,7 @@ func NewGophKeeper(storage *storage.Storage) *GophKeeper {
 	return &GophKeeper{rl: rl, storage: storage}
 }
 
-var user_id int = 1 //Заменить на правильный!!!
+var user_id int = 1 //!!! Заменить на правильный!!!
 
 func (gk *GophKeeper) Start() {
 	rootCmd := &cobra.Command{
@@ -65,6 +66,76 @@ func (gk *GophKeeper) Close() {
 	gk.rl.Close()
 }
 
+func (gk *GophKeeper) chooseAction(func1, func2, func3, func4 ActionFunc) {
+	printMenu()
+	line, _ := gk.rl.Readline()
+	switch strings.TrimSpace(line) {
+	case "1":
+		func1()
+	case "2":
+		func2()
+	case "3":
+		func3()
+	case "4":
+		func4()
+	default:
+		fmt.Println("Invalid choice")
+	}
+}
+
+func (gk *GophKeeper) getData() {
+	gk.chooseAction(gk.getLoginPassword, gk.getTextData, gk.getBinaryData, gk.getBankCardData)
+}
+
+func (gk *GophKeeper) addData() {
+	gk.chooseAction(gk.addLoginPassword, gk.addTextData, gk.addBinaryData, gk.addBankCardData)
+}
+
+func (gk *GophKeeper) editData() {
+	gk.chooseAction(gk.editLoginPassword, gk.editTextData, gk.editBinaryData, gk.editBankCardData)
+}
+func (gk *GophKeeper) selectData() (string, string) {
+	printMenu()
+	line, _ := gk.rl.Readline()
+	tableName, valid := getTableNameByChoice(line)
+	if !valid {
+		fmt.Println("Invalid choice")
+		return "", ""
+	}
+
+	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
+	if len(data) == 0 {
+		fmt.Println("No entries found in the table:", tableName)
+		return "", ""
+	}
+	for _, entry := range data {
+		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+	}
+
+	gk.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
+	id, _ := gk.rl.Readline()
+
+	return tableName, id
+}
+
+func (gk *GophKeeper) list() {
+	printMenu()
+	line, _ := gk.rl.Readline()
+	tableName, valid := getTableNameByChoice(strings.TrimSpace(line))
+	if !valid {
+		fmt.Println("Invalid choice")
+		return
+	}
+	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
+	if len(data) == 0 {
+		fmt.Println("No entries found in the table:", tableName)
+		return
+	}
+	for _, entry := range data {
+		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+	}
+}
+
 func (gk *GophKeeper) getLoginPassword() {
 	tableName, id := gk.selectData()
 	if tableName == "" || id == "" {
@@ -91,29 +162,6 @@ func (gk *GophKeeper) getTextData() {
 		fmt.Printf("Title: %s, Text: %s\n", textData["meta_info"], textData["data"])
 		fmt.Println("Data retrieved successfully!")
 	}
-}
-func (gk *GophKeeper) selectData() (string, string) {
-	printMenu()
-	line, _ := gk.rl.Readline()
-	tableName, valid := getTableNameByChoice(line)
-	if !valid {
-		fmt.Println("Invalid choice")
-		return "", ""
-	}
-
-	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
-	if len(data) == 0 {
-		fmt.Println("No entries found in the table:", tableName)
-		return "", ""
-	}
-	for _, entry := range data {
-		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-	}
-
-	gk.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
-	id, _ := gk.rl.Readline()
-
-	return tableName, id
 }
 
 func (gk *GophKeeper) getBinaryData() {
@@ -142,56 +190,6 @@ func (gk *GophKeeper) getBankCardData() {
 	} else {
 		fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n", bankCardData["meta_info"], bankCardData["card_number"], bankCardData["expiration_date"], bankCardData["cvv"])
 		fmt.Println("Data retrieved successfully!")
-	}
-}
-
-func (gk *GophKeeper) getData() {
-	printMenu()
-	line, _ := gk.rl.Readline()
-	switch strings.TrimSpace(line) {
-	case "1":
-		gk.getLoginPassword()
-	case "2":
-		gk.getTextData()
-	case "3":
-		gk.getBinaryData()
-	case "4":
-		gk.getBankCardData()
-	default:
-		fmt.Println("Invalid choice")
-	}
-}
-func (gk *GophKeeper) addData() {
-	printMenu()
-	line, _ := gk.rl.Readline()
-	switch strings.TrimSpace(line) {
-	case "1":
-		gk.addLoginPassword()
-	case "2":
-		gk.addTextData()
-	case "3":
-		gk.addBinaryData()
-	case "4":
-		gk.addBankCardData()
-	default:
-		fmt.Println("Invalid choice")
-	}
-}
-
-func (gk *GophKeeper) editData() {
-	printMenu()
-	line, _ := gk.rl.Readline()
-	switch strings.TrimSpace(line) {
-	case "1":
-		gk.editLoginPassword()
-	case "2":
-		gk.editTextData()
-	case "3":
-		gk.editBinaryData()
-	case "4":
-		gk.editBankCardData()
-	default:
-		fmt.Println("Invalid choice")
 	}
 }
 
@@ -259,7 +257,7 @@ func (gk *GophKeeper) addBinaryData() {
 			log.Fatalf("Failed to read file: %s", err)
 		}
 		// Encrypt the data
-		block, err := aes.NewCipher([]byte("example key 1234")) // Replace with 16, 24, or 32 byte key
+		block, err := aes.NewCipher([]byte("example key 1234")) // !!!Replace with 16, 24, or 32 byte key
 		if err != nil {
 			log.Fatalf("Failed to create cipher: %s", err)
 		}
@@ -436,24 +434,6 @@ func (gk *GophKeeper) editBankCardData() {
 	} else {
 		fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n", title, cardNumber, expiryDate, cvv)
 		fmt.Println("Data edited successfully!")
-	}
-}
-
-func (gk *GophKeeper) list() {
-	printMenu()
-	line, _ := gk.rl.Readline()
-	tableName, valid := getTableNameByChoice(strings.TrimSpace(line))
-	if !valid {
-		fmt.Println("Invalid choice")
-		return
-	}
-	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
-	if len(data) == 0 {
-		fmt.Println("No entries found in the table:", tableName)
-		return
-	}
-	for _, entry := range data {
-		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
 	}
 }
 
