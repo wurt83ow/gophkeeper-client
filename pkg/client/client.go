@@ -13,37 +13,37 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/spf13/cobra"
-	"github.com/wurt83ow/gophkeeper-client/pkg/storage"
+	"github.com/wurt83ow/gophkeeper-client/pkg/services"
 )
 
 type ActionFunc func()
-type GophKeeper struct {
+type Client struct {
 	rl      *readline.Instance
-	storage *storage.Storage
+	service *services.Service
 }
 
-func NewGophKeeper(storage *storage.Storage) *GophKeeper {
+func NewClient(service *services.Service) *Client {
 	rl, err := readline.New("> ")
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &GophKeeper{rl: rl, storage: storage}
+	return &Client{rl: rl, service: service}
 }
 
 var user_id int = 1 //!!! Заменить на правильный!!!
 
-func (gk *GophKeeper) Start() {
+func (c *Client) Start() {
 	rootCmd := &cobra.Command{
 		Use:   "gophkeeper",
 		Short: "GophKeeper is a secure password manager",
 	}
 
 	commands := map[string]func(){
-		"add":  gk.addData,
-		"edit": gk.editData,
-		"ls":   gk.list,
-		"rm":   gk.DeleteData,
-		"get":  gk.getData,
+		"add":  c.addData,
+		"edit": c.editData,
+		"ls":   c.list,
+		"rm":   c.DeleteData,
+		"get":  c.getData,
 	}
 
 	for use, runFunc := range commands {
@@ -62,13 +62,13 @@ func (gk *GophKeeper) Start() {
 	}
 }
 
-func (gk *GophKeeper) Close() {
-	gk.rl.Close()
+func (c *Client) Close() {
+	c.rl.Close()
 }
 
-func (gk *GophKeeper) chooseAction(func1, func2, func3, func4 ActionFunc) {
+func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 	printMenu()
-	line, _ := gk.rl.Readline()
+	line, _ := c.rl.Readline()
 	switch strings.TrimSpace(line) {
 	case "1":
 		func1()
@@ -83,27 +83,27 @@ func (gk *GophKeeper) chooseAction(func1, func2, func3, func4 ActionFunc) {
 	}
 }
 
-func (gk *GophKeeper) getData() {
-	gk.chooseAction(gk.getLoginPassword, gk.getTextData, gk.getBinaryData, gk.getBankCardData)
+func (c *Client) getData() {
+	c.chooseAction(c.getLoginPassword, c.getTextData, c.getBinaryData, c.getBankCardData)
 }
 
-func (gk *GophKeeper) addData() {
-	gk.chooseAction(gk.addLoginPassword, gk.addTextData, gk.addBinaryData, gk.addBankCardData)
+func (c *Client) addData() {
+	c.chooseAction(c.addLoginPassword, c.addTextData, c.addBinaryData, c.addBankCardData)
 }
 
-func (gk *GophKeeper) editData() {
-	gk.chooseAction(gk.editLoginPassword, gk.editTextData, gk.editBinaryData, gk.editBankCardData)
+func (c *Client) editData() {
+	c.chooseAction(c.editLoginPassword, c.editTextData, c.editBinaryData, c.editBankCardData)
 }
-func (gk *GophKeeper) selectData() (string, string) {
+func (c *Client) selectData() (string, string) {
 	printMenu()
-	line, _ := gk.rl.Readline()
+	line, _ := c.rl.Readline()
 	tableName, valid := getTableNameByChoice(line)
 	if !valid {
 		fmt.Println("Invalid choice")
 		return "", ""
 	}
 
-	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
+	data, _ := c.service.GetAllData(user_id, tableName, "id", "meta_info")
 	if len(data) == 0 {
 		fmt.Println("No entries found in the table:", tableName)
 		return "", ""
@@ -112,21 +112,21 @@ func (gk *GophKeeper) selectData() (string, string) {
 		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
 	}
 
-	gk.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
-	id, _ := gk.rl.Readline()
+	c.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
+	id, _ := c.rl.Readline()
 
 	return tableName, id
 }
 
-func (gk *GophKeeper) list() {
+func (c *Client) list() {
 	printMenu()
-	line, _ := gk.rl.Readline()
+	line, _ := c.rl.Readline()
 	tableName, valid := getTableNameByChoice(strings.TrimSpace(line))
 	if !valid {
 		fmt.Println("Invalid choice")
 		return
 	}
-	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
+	data, _ := c.service.GetAllData(user_id, tableName, "id", "meta_info")
 	if len(data) == 0 {
 		fmt.Println("No entries found in the table:", tableName)
 		return
@@ -136,12 +136,12 @@ func (gk *GophKeeper) list() {
 	}
 }
 
-func (gk *GophKeeper) getLoginPassword() {
-	tableName, id := gk.selectData()
+func (c *Client) getLoginPassword() {
+	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return
 	}
-	loginPasswordData, err := gk.storage.GetData(user_id, tableName, id)
+	loginPasswordData, err := c.service.GetData(user_id, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -150,12 +150,12 @@ func (gk *GophKeeper) getLoginPassword() {
 	}
 }
 
-func (gk *GophKeeper) getTextData() {
-	tableName, id := gk.selectData()
+func (c *Client) getTextData() {
+	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return
 	}
-	textData, err := gk.storage.GetData(user_id, tableName, id)
+	textData, err := c.service.GetData(user_id, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -164,13 +164,13 @@ func (gk *GophKeeper) getTextData() {
 	}
 }
 
-func (gk *GophKeeper) getBinaryData() {
-	tableName, id := gk.selectData()
+func (c *Client) getBinaryData() {
+	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return
 	}
 
-	binaryData, err := gk.storage.GetData(user_id, tableName, id)
+	binaryData, err := c.service.GetData(user_id, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -179,12 +179,12 @@ func (gk *GophKeeper) getBinaryData() {
 	}
 }
 
-func (gk *GophKeeper) getBankCardData() {
-	tableName, id := gk.selectData()
+func (c *Client) getBankCardData() {
+	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return
 	}
-	bankCardData, err := gk.storage.GetData(user_id, tableName, id)
+	bankCardData, err := c.service.GetData(user_id, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -193,22 +193,22 @@ func (gk *GophKeeper) getBankCardData() {
 	}
 }
 
-func (gk *GophKeeper) addLoginPassword() {
+func (c *Client) addLoginPassword() {
 	for {
-		gk.rl.SetPrompt("Choose a title (meta-information): ")
-		title, _ := gk.rl.Readline()
-		gk.rl.SetPrompt("Enter login: ")
-		login, _ := gk.rl.Readline()
-		gk.rl.SetPrompt("Enter password: ")
-		gk.rl.Config.EnableMask = true
-		password, _ := gk.rl.Readline()
-		gk.rl.Config.EnableMask = false
+		c.rl.SetPrompt("Choose a title (meta-information): ")
+		title, _ := c.rl.Readline()
+		c.rl.SetPrompt("Enter login: ")
+		login, _ := c.rl.Readline()
+		c.rl.SetPrompt("Enter password: ")
+		c.rl.Config.EnableMask = true
+		password, _ := c.rl.Readline()
+		c.rl.Config.EnableMask = false
 		data := map[string]string{
 			"login":     login,
 			"password":  password,
 			"meta_info": title,
 		}
-		err := gk.storage.AddData(user_id, "UserCredentials", data)
+		err := c.service.AddData(user_id, "UserCredentials", data)
 		if err != nil {
 			fmt.Printf("Failed to add data: %s\n", err)
 			return
@@ -217,24 +217,24 @@ func (gk *GophKeeper) addLoginPassword() {
 		fmt.Printf("Login: %s, Password: %s\n", login, password)
 		fmt.Println("Data added successfully!")
 
-		gk.rl.SetPrompt("Do you want to continue adding data? (yes/no): ")
-		choice, _ := gk.rl.Readline()
+		c.rl.SetPrompt("Do you want to continue adding data? (yes/no): ")
+		choice, _ := c.rl.Readline()
 		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
 			break
 		}
 	}
 }
-func (gk *GophKeeper) addTextData() {
-	gk.rl.SetPrompt("Choose a title (meta-information): ")
-	title, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Enter text data: ")
-	text, _ := gk.rl.Readline()
+func (c *Client) addTextData() {
+	c.rl.SetPrompt("Choose a title (meta-information): ")
+	title, _ := c.rl.Readline()
+	c.rl.SetPrompt("Enter text data: ")
+	text, _ := c.rl.Readline()
 	data := map[string]string{
 		"data":      text,
 		"meta_info": title,
 	}
 
-	err := gk.storage.AddData(user_id, "TextData", data)
+	err := c.service.AddData(user_id, "TextData", data)
 	if err != nil {
 		fmt.Printf("Failed to add data: %s\n", err)
 		return
@@ -243,11 +243,11 @@ func (gk *GophKeeper) addTextData() {
 	fmt.Printf("Title: %s, Text: %s\n", title, text)
 	fmt.Println("Data added successfully!")
 }
-func (gk *GophKeeper) addBinaryData() {
-	gk.rl.SetPrompt("Choose a title (meta-information): ")
-	title, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Specify the file path: ")
-	filePath, _ := gk.rl.Readline()
+func (c *Client) addBinaryData() {
+	c.rl.SetPrompt("Choose a title (meta-information): ")
+	title, _ := c.rl.Readline()
+	c.rl.SetPrompt("Specify the file path: ")
+	filePath, _ := c.rl.Readline()
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		fmt.Println("File not found!")
 	} else {
@@ -280,7 +280,7 @@ func (gk *GophKeeper) addBinaryData() {
 			"meta_info": title,
 		}
 
-		err = gk.storage.AddData(user_id, "FilesData", fileData)
+		err = c.service.AddData(user_id, "FilesData", fileData)
 		if err != nil {
 			fmt.Printf("Failed to add data: %s\n", err)
 			return
@@ -289,15 +289,15 @@ func (gk *GophKeeper) addBinaryData() {
 		fmt.Println("Data added successfully!")
 	}
 }
-func (gk *GophKeeper) addBankCardData() {
+func (c *Client) addBankCardData() {
 	digitsOnly, _ := regexp.Compile(`^\d+$`)
 	dateFormat, _ := regexp.Compile(`^\d{2}/\d{2}$`)
-	gk.rl.SetPrompt("Choose a title (meta-information): ")
-	title, _ := gk.rl.Readline()
+	c.rl.SetPrompt("Choose a title (meta-information): ")
+	title, _ := c.rl.Readline()
 	var cardNumber, expiryDate, cvv string
 	for {
-		gk.rl.SetPrompt("Enter card number: ")
-		cardNumber, _ = gk.rl.Readline()
+		c.rl.SetPrompt("Enter card number: ")
+		cardNumber, _ = c.rl.Readline()
 		if !digitsOnly.MatchString(cardNumber) {
 			fmt.Println("Card number can only contain digits!")
 		} else {
@@ -305,8 +305,8 @@ func (gk *GophKeeper) addBankCardData() {
 		}
 	}
 	for {
-		gk.rl.SetPrompt("Enter expiry date (MM/YY): ")
-		expiryDate, _ = gk.rl.Readline()
+		c.rl.SetPrompt("Enter expiry date (MM/YY): ")
+		expiryDate, _ = c.rl.Readline()
 		if !dateFormat.MatchString(expiryDate) {
 			fmt.Println("Expiry date must be in the format MM/YY!")
 		} else {
@@ -314,8 +314,8 @@ func (gk *GophKeeper) addBankCardData() {
 		}
 	}
 	for {
-		gk.rl.SetPrompt("Enter CVV: ")
-		cvv, _ = gk.rl.Readline()
+		c.rl.SetPrompt("Enter CVV: ")
+		cvv, _ = c.rl.Readline()
 		if !digitsOnly.MatchString(cvv) {
 			fmt.Println("CVV can only contain digits!")
 		} else {
@@ -329,7 +329,7 @@ func (gk *GophKeeper) addBankCardData() {
 		"meta_info":       title,
 	}
 
-	err := gk.storage.AddData(user_id, "CreditCardData", cardData)
+	err := c.service.AddData(user_id, "CreditCardData", cardData)
 	if err != nil {
 		fmt.Printf("Failed to add data: %s\n", err)
 		return
@@ -338,25 +338,25 @@ func (gk *GophKeeper) addBankCardData() {
 	fmt.Println("Data added successfully!")
 }
 
-func (gk *GophKeeper) editLoginPassword() {
-	tableName, id := gk.selectData()
+func (c *Client) editLoginPassword() {
+	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return
 	}
-	gk.rl.SetPrompt("Choose a new title (meta-information): ")
-	title, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Enter new login: ")
-	login, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Enter new password: ")
-	gk.rl.Config.EnableMask = true
-	password, _ := gk.rl.Readline()
-	gk.rl.Config.EnableMask = false
+	c.rl.SetPrompt("Choose a new title (meta-information): ")
+	title, _ := c.rl.Readline()
+	c.rl.SetPrompt("Enter new login: ")
+	login, _ := c.rl.Readline()
+	c.rl.SetPrompt("Enter new password: ")
+	c.rl.Config.EnableMask = true
+	password, _ := c.rl.Readline()
+	c.rl.Config.EnableMask = false
 	newData := map[string]string{
 		"login":     login,
 		"password":  password,
 		"meta_info": title,
 	}
-	err := gk.storage.UpdateData(user_id, id, newData)
+	err := c.service.UpdateData(user_id, id, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {
@@ -365,20 +365,20 @@ func (gk *GophKeeper) editLoginPassword() {
 	}
 }
 
-func (gk *GophKeeper) editTextData() {
-	tableName, id := gk.selectData()
+func (c *Client) editTextData() {
+	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return
 	}
-	gk.rl.SetPrompt("Choose a new title (meta-information): ")
-	title, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Enter new text data: ")
-	text, _ := gk.rl.Readline()
+	c.rl.SetPrompt("Choose a new title (meta-information): ")
+	title, _ := c.rl.Readline()
+	c.rl.SetPrompt("Enter new text data: ")
+	text, _ := c.rl.Readline()
 	newData := map[string]string{
 		"data":      text,
 		"meta_info": title,
 	}
-	err := gk.storage.UpdateData(user_id, id, newData)
+	err := c.service.UpdateData(user_id, id, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {
@@ -387,20 +387,20 @@ func (gk *GophKeeper) editTextData() {
 	}
 }
 
-func (gk *GophKeeper) editBinaryData() {
-	tableName, id := gk.selectData()
+func (c *Client) editBinaryData() {
+	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return
 	}
-	gk.rl.SetPrompt("Choose a new title (meta-information): ")
-	title, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Specify the new file path: ")
-	filePath, _ := gk.rl.Readline()
+	c.rl.SetPrompt("Choose a new title (meta-information): ")
+	title, _ := c.rl.Readline()
+	c.rl.SetPrompt("Specify the new file path: ")
+	filePath, _ := c.rl.Readline()
 	newData := map[string]string{
 		"path":      filePath,
 		"meta_info": title,
 	}
-	err := gk.storage.UpdateData(user_id, id, newData)
+	err := c.service.UpdateData(user_id, id, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {
@@ -409,26 +409,26 @@ func (gk *GophKeeper) editBinaryData() {
 	}
 }
 
-func (gk *GophKeeper) editBankCardData() {
-	tableName, id := gk.selectData()
+func (c *Client) editBankCardData() {
+	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return
 	}
-	gk.rl.SetPrompt("Choose a new title (meta-information): ")
-	title, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Enter new card number: ")
-	cardNumber, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Enter new expiry date (MM/YY): ")
-	expiryDate, _ := gk.rl.Readline()
-	gk.rl.SetPrompt("Enter new CVV: ")
-	cvv, _ := gk.rl.Readline()
+	c.rl.SetPrompt("Choose a new title (meta-information): ")
+	title, _ := c.rl.Readline()
+	c.rl.SetPrompt("Enter new card number: ")
+	cardNumber, _ := c.rl.Readline()
+	c.rl.SetPrompt("Enter new expiry date (MM/YY): ")
+	expiryDate, _ := c.rl.Readline()
+	c.rl.SetPrompt("Enter new CVV: ")
+	cvv, _ := c.rl.Readline()
 	newData := map[string]string{
 		"card_number":     cardNumber,
 		"expiration_date": expiryDate,
 		"cvv":             cvv,
 		"meta_info":       title,
 	}
-	err := gk.storage.UpdateData(user_id, id, newData)
+	err := c.service.UpdateData(user_id, id, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {
@@ -437,17 +437,17 @@ func (gk *GophKeeper) editBankCardData() {
 	}
 }
 
-func (gk *GophKeeper) DeleteData() {
+func (c *Client) DeleteData() {
 	printMenu()
 
-	line, _ := gk.rl.Readline()
+	line, _ := c.rl.Readline()
 	tableName, valid := getTableNameByChoice(strings.TrimSpace(line))
 	if !valid {
 		fmt.Println("Invalid choice")
 		return
 	}
 
-	data, _ := gk.storage.GetAllData(tableName, "id", "meta_info")
+	data, _ := c.service.GetAllData(user_id, tableName, "id", "meta_info")
 	if len(data) == 0 {
 		fmt.Println("No entries found in the table:", tableName)
 		return
@@ -457,7 +457,7 @@ func (gk *GophKeeper) DeleteData() {
 	}
 
 	fmt.Println("Enter id or meta_info to delete:")
-	line, _ = gk.rl.Readline()
+	line, _ = c.rl.Readline()
 	var entriesToDelete []map[string]string
 	for _, entry := range data {
 		if entry["id"] == line || strings.Contains(entry["meta_info"], line) {
@@ -467,14 +467,14 @@ func (gk *GophKeeper) DeleteData() {
 
 	if len(entriesToDelete) > 1 {
 		fmt.Println("Multiple entries found. Please enter the id of the entry you want to delete.")
-		line, _ = gk.rl.Readline()
+		line, _ = c.rl.Readline()
 		for _, entry := range entriesToDelete {
 			if entry["id"] == line {
 				fmt.Println("Are you sure you want to delete this entry? (yes/no)")
-				line, _ = gk.rl.Readline()
+				line, _ = c.rl.Readline()
 				if strings.ToLower(line) == "yes" {
 
-					err := gk.storage.DeleteData(user_id, tableName, entry["id"], entry["meta_info"])
+					err := c.service.DeleteData(user_id, tableName, entry["id"], entry["meta_info"])
 					if err != nil {
 						fmt.Printf("Failed to delete data: %s\n", err)
 						return
@@ -487,9 +487,9 @@ func (gk *GophKeeper) DeleteData() {
 		fmt.Println("No entry found with the given id.")
 	} else if len(entriesToDelete) == 1 {
 		fmt.Println("Are you sure you want to delete this entry? (yes/no)")
-		line, _ = gk.rl.Readline()
+		line, _ = c.rl.Readline()
 		if strings.ToLower(line) == "yes" {
-			err := gk.storage.DeleteData(user_id, tableName, entriesToDelete[0]["id"], entriesToDelete[0]["meta_info"])
+			err := c.service.DeleteData(user_id, tableName, entriesToDelete[0]["id"], entriesToDelete[0]["meta_info"])
 			if err != nil {
 				fmt.Printf("Failed to delete data: %s\n", err)
 				return

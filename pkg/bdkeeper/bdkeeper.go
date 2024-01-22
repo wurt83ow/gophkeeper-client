@@ -2,6 +2,7 @@ package bdkeeper
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +17,7 @@ type Keeper struct {
 	db *sql.DB
 }
 
-func New() *Keeper {
+func NewKeeper() *Keeper {
 	db, err := sql.Open("sqlite3", "./data.db")
 	if err != nil {
 		panic(err)
@@ -41,6 +42,18 @@ func New() *Keeper {
 	return &Keeper{
 		db: db,
 	}
+}
+
+func (k *Keeper) MarkForSync(user_id int, table string, data map[string]string) error {
+	// Преобразовать данные в JSON
+	dataJson, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	// Добавить запись в таблицу SyncQueue
+	_, err = k.db.Exec("INSERT INTO SyncQueue (user_id, table_name, data) VALUES (?, ?, ?)", user_id, table, dataJson)
+	return err
 }
 
 func (k *Keeper) AddData(user_id int, table string, data map[string]string) error {
