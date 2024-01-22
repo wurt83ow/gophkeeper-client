@@ -1,22 +1,24 @@
 package services
 
 import (
-	"crypto/sha256"
 	"errors"
 
 	"github.com/wurt83ow/gophkeeper-client/pkg/bdkeeper"
+	"github.com/wurt83ow/gophkeeper-client/pkg/encription"
 	"github.com/wurt83ow/gophkeeper-client/pkg/gksync"
 )
 
 type Service struct {
 	keeper *bdkeeper.Keeper
 	sync   *gksync.Sync
+	enc    *encription.Enc
 }
 
-func NewServices(keeper *bdkeeper.Keeper, sync *gksync.Sync) *Service {
+func NewServices(keeper *bdkeeper.Keeper, sync *gksync.Sync, enc *encription.Enc) *Service {
 	return &Service{
 		keeper: keeper,
 		sync:   sync,
+		enc:    enc,
 	}
 }
 
@@ -31,7 +33,7 @@ func (s *Service) Register(username string, password string) error {
 	}
 
 	// Хеширование пароля
-	hashedPassword, err := HashPassword(password)
+	hashedPassword, err := s.enc.HashPassword(password)
 	if err != nil {
 		return err
 	}
@@ -57,7 +59,7 @@ func (s *Service) Login(username string, password string) (int, error) {
 	}
 
 	// Сравнение хешированного пароля с хешем введенного пароля
-	if !s.keeper.CompareHashAndPassword(hashedPassword, password) {
+	if !s.enc.CompareHashAndPassword(hashedPassword, password) {
 		return 0, errors.New("Invalid password")
 	}
 
@@ -75,15 +77,6 @@ func (s *Service) Login(username string, password string) (int, error) {
 	return userID, nil
 }
 
-// Перенести в модуль encription
-func HashPassword(password string) (string, error) {
-	hash := sha256.New()
-	_, err := hash.Write([]byte(password))
-	if err != nil {
-		return "", err
-	}
-	return string(hash.Sum(nil)), nil
-}
 func (s *Service) InitSync(user_id int, table string, columns ...string) error {
 	data, err := s.sync.GetAllData(user_id, table)
 	if err != nil {
@@ -111,25 +104,45 @@ func (s *Service) GetData(user_id int, table string, columns ...string) (map[str
 }
 
 func (s *Service) AddData(user_id int, table string, data map[string]string) error {
-	err := s.keeper.AddData(user_id, table, data)
+	// Шифрование каждого значения в данных перед их сохранением
+	encryptedData := make(map[string]string)
+	for key, value := range data {
+		encryptedValue, err := s.enc.Encrypt(value)
+		if err != nil {
+			return err
+		}
+		encryptedData[key] = encryptedValue
+	}
+
+	err := s.keeper.AddData(user_id, table, encryptedData)
 	if err != nil {
 		return err
 	}
-	err = s.sync.AddData(user_id, table, data)
+	err = s.sync.AddData(user_id, table, encryptedData)
 	if err == gksync.ErrNetworkUnavailable {
-		err = s.keeper.MarkForSync(user_id, table, data)
+		err = s.keeper.MarkForSync(user_id, table, encryptedData)
 	}
 	return err
 }
 
 func (s *Service) UpdateData(user_id int, table string, data map[string]string) error {
-	err := s.keeper.UpdateData(user_id, table, data)
+	// Шифрование каждого значения в данных перед их обновлением
+	encryptedData := make(map[string]string)
+	for key, value := range data {
+		encryptedValue, err := s.enc.Encrypt(value)
+		if err != nil {
+			return err
+		}
+		encryptedData[key] = encryptedValue
+	}
+
+	err := s.keeper.UpdateData(user_id, table, encryptedData)
 	if err != nil {
 		return err
 	}
-	err = s.sync.UpdateData(user_id, table, data)
+	err = s.sync.UpdateData(user_id, table, encryptedData)
 	if err == gksync.ErrNetworkUnavailable {
-		err = s.keeper.MarkForSync(user_id, table, data)
+		err = s.keeper.MarkForSync(user_id, table, encryptedData)
 	}
 	return err
 }

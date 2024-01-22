@@ -5,6 +5,7 @@ import (
 
 	"github.com/wurt83ow/gophkeeper-client/pkg/bdkeeper"
 	"github.com/wurt83ow/gophkeeper-client/pkg/client"
+	"github.com/wurt83ow/gophkeeper-client/pkg/encription"
 	"github.com/wurt83ow/gophkeeper-client/pkg/gksync"
 	"github.com/wurt83ow/gophkeeper-client/pkg/services"
 )
@@ -12,7 +13,8 @@ import (
 func main() {
 	keeper := bdkeeper.NewKeeper()
 	sync := gksync.NewSync("http://localhost:8080")
-	service := services.NewServices(keeper, sync)
+	enc := encription.NewEnc("password")
+	service := services.NewServices(keeper, sync, enc)
 	// Проверка, является ли это первым запуском
 	isEmpty, err := keeper.IsEmpty()
 	if err != nil {
