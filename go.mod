@@ -7,6 +7,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.19
 	github.com/pressly/goose v2.7.0+incompatible
 	github.com/spf13/cobra v1.8.0
+	golang.org/x/crypto v0.18.0
 )
 
 require (

@@ -20,6 +20,7 @@ type ActionFunc func()
 type Client struct {
 	rl      *readline.Instance
 	service *services.Service
+	userID  int // добавляем поле для хранения идентификатора текущего пользователя
 }
 
 func NewClient(service *services.Service) *Client {
@@ -30,8 +31,6 @@ func NewClient(service *services.Service) *Client {
 	return &Client{rl: rl, service: service}
 }
 
-var user_id int = 1 //!!! Заменить на правильный!!!
-
 func (c *Client) Start() {
 	rootCmd := &cobra.Command{
 		Use:   "gophkeeper",
@@ -39,11 +38,13 @@ func (c *Client) Start() {
 	}
 
 	commands := map[string]func(){
-		"add":  c.addData,
-		"edit": c.editData,
-		"ls":   c.list,
-		"rm":   c.DeleteData,
-		"get":  c.getData,
+		"add":      c.addData,
+		"edit":     c.editData,
+		"ls":       c.list,
+		"rm":       c.DeleteData,
+		"get":      c.getData,
+		"register": c.register,
+		"login":    c.login,
 	}
 
 	for use, runFunc := range commands {
@@ -51,7 +52,13 @@ func (c *Client) Start() {
 		command := &cobra.Command{
 			Use:   use,
 			Short: use,
-			Run:   func(cmd *cobra.Command, args []string) { runFunc() },
+			Run: func(cmd *cobra.Command, args []string) {
+				if c.userID == 0 && use != "register" && use != "login" {
+					fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+					return
+				}
+				runFunc()
+			},
 		}
 		rootCmd.AddCommand(command)
 	}
@@ -94,6 +101,41 @@ func (c *Client) addData() {
 func (c *Client) editData() {
 	c.chooseAction(c.editLoginPassword, c.editTextData, c.editBinaryData, c.editBankCardData)
 }
+
+// Реализация функции регистрации
+func (c *Client) register() {
+	c.rl.SetPrompt("Введите имя пользователя: ")
+	username, _ := c.rl.Readline()
+
+	c.rl.SetPrompt("Введите пароль: ")
+	password, _ := c.rl.Readline()
+
+	// Вызовите функцию регистрации в вашем сервисе
+	err := c.service.Register(username, password)
+	if err != nil {
+		fmt.Printf("Ошибка при регистрации: %s\n", err)
+	} else {
+		fmt.Println("Регистрация прошла успешно!")
+	}
+}
+
+func (c *Client) login() {
+	c.rl.SetPrompt("Введите имя пользователя: ")
+	username, _ := c.rl.Readline()
+
+	c.rl.SetPrompt("Введите пароль: ")
+	password, _ := c.rl.Readline()
+
+	// Вызовите функцию входа в систему в вашем сервисе
+	userID, err := c.service.Login(username, password)
+	if err != nil {
+		fmt.Printf("Ошибка при входе в систему: %s\n", err)
+	} else {
+		c.userID = userID
+		fmt.Println("Вход в систему прошел успешно!")
+	}
+}
+
 func (c *Client) selectData() (string, string) {
 	printMenu()
 	line, _ := c.rl.Readline()
@@ -103,7 +145,7 @@ func (c *Client) selectData() (string, string) {
 		return "", ""
 	}
 
-	data, _ := c.service.GetAllData(user_id, tableName, "id", "meta_info")
+	data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
 	if len(data) == 0 {
 		fmt.Println("No entries found in the table:", tableName)
 		return "", ""
@@ -126,7 +168,7 @@ func (c *Client) list() {
 		fmt.Println("Invalid choice")
 		return
 	}
-	data, _ := c.service.GetAllData(user_id, tableName, "id", "meta_info")
+	data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
 	if len(data) == 0 {
 		fmt.Println("No entries found in the table:", tableName)
 		return
@@ -141,7 +183,7 @@ func (c *Client) getLoginPassword() {
 	if tableName == "" || id == "" {
 		return
 	}
-	loginPasswordData, err := c.service.GetData(user_id, tableName, id)
+	loginPasswordData, err := c.service.GetData(c.userID, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -155,7 +197,7 @@ func (c *Client) getTextData() {
 	if tableName == "" || id == "" {
 		return
 	}
-	textData, err := c.service.GetData(user_id, tableName, id)
+	textData, err := c.service.GetData(c.userID, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -170,7 +212,7 @@ func (c *Client) getBinaryData() {
 		return
 	}
 
-	binaryData, err := c.service.GetData(user_id, tableName, id)
+	binaryData, err := c.service.GetData(c.userID, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -184,7 +226,7 @@ func (c *Client) getBankCardData() {
 	if tableName == "" || id == "" {
 		return
 	}
-	bankCardData, err := c.service.GetData(user_id, tableName, id)
+	bankCardData, err := c.service.GetData(c.userID, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -208,7 +250,7 @@ func (c *Client) addLoginPassword() {
 			"password":  password,
 			"meta_info": title,
 		}
-		err := c.service.AddData(user_id, "UserCredentials", data)
+		err := c.service.AddData(c.userID, "UserCredentials", data)
 		if err != nil {
 			fmt.Printf("Failed to add data: %s\n", err)
 			return
@@ -234,7 +276,7 @@ func (c *Client) addTextData() {
 		"meta_info": title,
 	}
 
-	err := c.service.AddData(user_id, "TextData", data)
+	err := c.service.AddData(c.userID, "TextData", data)
 	if err != nil {
 		fmt.Printf("Failed to add data: %s\n", err)
 		return
@@ -280,7 +322,7 @@ func (c *Client) addBinaryData() {
 			"meta_info": title,
 		}
 
-		err = c.service.AddData(user_id, "FilesData", fileData)
+		err = c.service.AddData(c.userID, "FilesData", fileData)
 		if err != nil {
 			fmt.Printf("Failed to add data: %s\n", err)
 			return
@@ -329,7 +371,7 @@ func (c *Client) addBankCardData() {
 		"meta_info":       title,
 	}
 
-	err := c.service.AddData(user_id, "CreditCardData", cardData)
+	err := c.service.AddData(c.userID, "CreditCardData", cardData)
 	if err != nil {
 		fmt.Printf("Failed to add data: %s\n", err)
 		return
@@ -356,7 +398,7 @@ func (c *Client) editLoginPassword() {
 		"password":  password,
 		"meta_info": title,
 	}
-	err := c.service.UpdateData(user_id, id, newData)
+	err := c.service.UpdateData(c.userID, id, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {
@@ -378,7 +420,7 @@ func (c *Client) editTextData() {
 		"data":      text,
 		"meta_info": title,
 	}
-	err := c.service.UpdateData(user_id, id, newData)
+	err := c.service.UpdateData(c.userID, id, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {
@@ -400,7 +442,7 @@ func (c *Client) editBinaryData() {
 		"path":      filePath,
 		"meta_info": title,
 	}
-	err := c.service.UpdateData(user_id, id, newData)
+	err := c.service.UpdateData(c.userID, id, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {
@@ -428,7 +470,7 @@ func (c *Client) editBankCardData() {
 		"cvv":             cvv,
 		"meta_info":       title,
 	}
-	err := c.service.UpdateData(user_id, id, newData)
+	err := c.service.UpdateData(c.userID, id, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {
@@ -447,7 +489,7 @@ func (c *Client) DeleteData() {
 		return
 	}
 
-	data, _ := c.service.GetAllData(user_id, tableName, "id", "meta_info")
+	data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
 	if len(data) == 0 {
 		fmt.Println("No entries found in the table:", tableName)
 		return
@@ -474,7 +516,7 @@ func (c *Client) DeleteData() {
 				line, _ = c.rl.Readline()
 				if strings.ToLower(line) == "yes" {
 
-					err := c.service.DeleteData(user_id, tableName, entry["id"], entry["meta_info"])
+					err := c.service.DeleteData(c.userID, tableName, entry["id"], entry["meta_info"])
 					if err != nil {
 						fmt.Printf("Failed to delete data: %s\n", err)
 						return
@@ -489,7 +531,7 @@ func (c *Client) DeleteData() {
 		fmt.Println("Are you sure you want to delete this entry? (yes/no)")
 		line, _ = c.rl.Readline()
 		if strings.ToLower(line) == "yes" {
-			err := c.service.DeleteData(user_id, tableName, entriesToDelete[0]["id"], entriesToDelete[0]["meta_info"])
+			err := c.service.DeleteData(c.userID, tableName, entriesToDelete[0]["id"], entriesToDelete[0]["meta_info"])
 			if err != nil {
 				fmt.Printf("Failed to delete data: %s\n", err)
 				return

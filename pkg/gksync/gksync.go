@@ -140,3 +140,52 @@ func (s *Sync) ClearData(user_id int, table string) error {
 
 	return nil
 }
+func (s *Sync) GetPassword(username string) (string, error) {
+	// Отправить GET-запрос на сервер
+	resp, err := http.Get(fmt.Sprintf("%s/getPassword/%s", s.serverURL, username))
+	if err != nil {
+		return "", ErrNetworkUnavailable
+	}
+	defer resp.Body.Close()
+
+	// Прочитать ответ
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// Распарсить JSON-ответ в строку
+	var password string
+	err = json.Unmarshal(body, &password)
+	if err != nil {
+		return "", err
+	}
+
+	// Возвращаем хешированный пароль
+	return password, nil
+}
+
+func (s *Sync) GetUserID(username string) (int, error) {
+	// Отправить GET-запрос на сервер
+	resp, err := http.Get(fmt.Sprintf("%s/getUserID/%s", s.serverURL, username))
+	if err != nil {
+		return 0, ErrNetworkUnavailable
+	}
+	defer resp.Body.Close()
+
+	// Прочитать ответ
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	// Распарсить JSON-ответ в целое число
+	var userID int
+	err = json.Unmarshal(body, &userID)
+	if err != nil {
+		return 0, err
+	}
+
+	// Возвращаем идентификатор пользователя
+	return userID, nil
+}

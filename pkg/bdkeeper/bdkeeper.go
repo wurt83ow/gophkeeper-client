@@ -11,6 +11,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Keeper struct {
@@ -44,6 +45,51 @@ func NewKeeper() *Keeper {
 	}
 }
 
+func (k *Keeper) UserExists(username string) (bool, error) {
+	// Запрос для проверки наличия пользователя в базе данных
+	query := `SELECT COUNT(*) FROM Users WHERE username = ?;`
+
+	// Выполнение запроса
+	row := k.db.QueryRow(query, username)
+
+	// Получение результата
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		return false, err
+	}
+
+	// Если количество записей больше 0, значит пользователь существует
+	return count > 0, nil
+}
+
+func (k *Keeper) AddUser(username string, hashedPassword string) error {
+	// Запрос для добавления нового пользователя в базу данных
+	query := `INSERT INTO Users (username, password) VALUES (?, ?);`
+
+	// Выполнение запроса
+	_, err := k.db.Exec(query, username, hashedPassword)
+	return err
+}
+
+func (k *Keeper) IsEmpty() (bool, error) {
+	// Запрос для получения количества записей во всех таблицах
+	query := `SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`
+
+	// Выполнение запроса
+	row := k.db.QueryRow(query)
+
+	// Получение результата
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		return false, err
+	}
+
+	// Если количество записей равно 0, значит база данных пуста
+	return count == 0, nil
+}
+
 func (k *Keeper) MarkForSync(user_id int, table string, data map[string]string) error {
 	// Преобразовать данные в JSON
 	dataJson, err := json.Marshal(data)
@@ -56,6 +102,47 @@ func (k *Keeper) MarkForSync(user_id int, table string, data map[string]string) 
 	return err
 }
 
+func (k *Keeper) GetPassword(username string) (string, error) {
+	// Запрос для получения хешированного пароля пользователя из базы данных
+	query := `SELECT password FROM Users WHERE username = ?;`
+
+	// Выполнение запроса
+	row := k.db.QueryRow(query, username)
+
+	// Получение результата
+	var password string
+	err := row.Scan(&password)
+	if err != nil {
+		return "", err
+	}
+
+	// Возвращаем хешированный пароль
+	return password, nil
+}
+
+func (k *Keeper) CompareHashAndPassword(hashedPassword, password string) bool {
+	// Сравнение хешированного пароля с хешем введенного пароля
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	return err == nil
+}
+
+func (k *Keeper) GetUserID(username string) (int, error) {
+	// Запрос для получения идентификатора пользователя из базы данных
+	query := `SELECT id FROM Users WHERE username = ?;`
+
+	// Выполнение запроса
+	row := k.db.QueryRow(query, username)
+
+	// Получение результата
+	var id int
+	err := row.Scan(&id)
+	if err != nil {
+		return 0, err
+	}
+
+	// Возвращаем идентификатор пользователя
+	return id, nil
+}
 func (k *Keeper) AddData(user_id int, table string, data map[string]string) error {
 	keys := make([]string, 0, len(data)+1)        // +1 для user_id
 	values := make([]interface{}, 0, len(data)+1) // +1 для user_id

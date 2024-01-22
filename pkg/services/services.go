@@ -1,6 +1,9 @@
 package services
 
 import (
+	"crypto/sha256"
+	"errors"
+
 	"github.com/wurt83ow/gophkeeper-client/pkg/bdkeeper"
 	"github.com/wurt83ow/gophkeeper-client/pkg/gksync"
 )
@@ -15,6 +18,84 @@ func NewServices(keeper *bdkeeper.Keeper, sync *gksync.Sync) *Service {
 		keeper: keeper,
 		sync:   sync,
 	}
+}
+
+func (s *Service) Register(username string, password string) error {
+	// Проверка наличия пользователя в базе данных
+	userExists, err := s.keeper.UserExists(username)
+	if err != nil {
+		return err
+	}
+	if userExists {
+		return errors.New("User already exists")
+	}
+
+	// Хеширование пароля
+	hashedPassword, err := HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	// Сохранение нового пользователя в базе данных
+	err = s.keeper.AddUser(username, hashedPassword)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) Login(username string, password string) (int, error) {
+	// Попытка получить хешированный пароль пользователя из локальной базы данных
+	hashedPassword, err := s.keeper.GetPassword(username)
+	if err != nil {
+		// Если пользователь не найден в локальной базе данных, попытка получить данные из сервера
+		hashedPassword, err = s.sync.GetPassword(username)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	// Сравнение хешированного пароля с хешем введенного пароля
+	if !s.keeper.CompareHashAndPassword(hashedPassword, password) {
+		return 0, errors.New("Invalid password")
+	}
+
+	// Если пароли совпадают, получаем идентификатор пользователя
+	userID, err := s.keeper.GetUserID(username)
+	if err != nil {
+		// Если идентификатор пользователя не найден в локальной базе данных, попытка получить его из сервера
+		userID, err = s.sync.GetUserID(username)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	// Возвращаем идентификатор пользователя
+	return userID, nil
+}
+
+// Перенести в модуль encription
+func HashPassword(password string) (string, error) {
+	hash := sha256.New()
+	_, err := hash.Write([]byte(password))
+	if err != nil {
+		return "", err
+	}
+	return string(hash.Sum(nil)), nil
+}
+func (s *Service) InitSync(user_id int, table string, columns ...string) error {
+	data, err := s.sync.GetAllData(user_id, table)
+	if err != nil {
+		return err
+	}
+	for _, item := range data {
+		err = s.keeper.AddData(user_id, table, item)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) GetData(user_id int, table string, columns ...string) (map[string]string, error) {
