@@ -3,7 +3,8 @@
 CREATE TABLE Users (
     id INTEGER PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL
+    password TEXT NOT NULL,
+    deleted BOOLEAN DEFAULT FALSE
 );
 
 -- +goose Down

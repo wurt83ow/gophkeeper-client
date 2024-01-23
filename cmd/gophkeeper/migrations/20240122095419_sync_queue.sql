@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS SyncQueue (
     user_id INTEGER,
     table_name TEXT NOT NULL,
     data TEXT NOT NULL,
-    file_path TEXT
+    file_path TEXT,
+    deleted BOOLEAN DEFAULT FALSE
 );
 
 -- +goose Down
