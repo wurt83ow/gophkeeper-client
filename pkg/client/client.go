@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/chzyer/readline"
 	"github.com/spf13/cobra"
@@ -46,9 +48,50 @@ func (c *Client) Start() {
 
 		"register": c.register,
 		"login":    c.login,
+		"logout":   c.Logout,
 		"get":      c.getData,
 	}
 
+	if _, err := os.Stat("session.dat"); err == nil {
+		// Прочитайте файл и разделите его на userID и время начала сеанса
+		fileContent, err := os.ReadFile("session.dat")
+		if err != nil {
+			fmt.Println("Ошибка при чтении файла session.dat:", err)
+			return
+		}
+		lines := strings.Split(string(fileContent), "\n")
+		if len(lines) < 2 {
+			fmt.Println("Файл session.dat имеет неверный формат")
+			return
+		}
+
+		// Расшифруйте userID
+		decryptedUserID, err := c.enc.Decrypt(lines[0])
+		if err != nil {
+			fmt.Println("Ошибка при расшифровке userID:", err)
+			return
+		}
+		userID, err := strconv.Atoi(decryptedUserID)
+		if err != nil {
+			fmt.Println("Ошибка при преобразовании userID в целое число:", err)
+			return
+		}
+		c.userID = userID
+
+		// Преобразуйте время начала сеанса обратно в Time
+		sessionStart, err := time.Parse(time.RFC3339, lines[1])
+		if err != nil {
+			fmt.Println("Ошибка при разборе времени начала сеанса:", err)
+			return
+		}
+
+		// Если прошло слишком много времени, попросите пользователя войти в систему снова
+		if time.Since(sessionStart) > c.opt.SessionDuration {
+			fmt.Println("Ваш сеанс истек. Пожалуйста, войдите снова.")
+			c.userID = 0
+			os.Remove("session.dat")
+		}
+	}
 	for use, runFunc := range commands {
 		localRunFunc := runFunc // Создаем локальную переменную
 		command := &cobra.Command{
@@ -70,6 +113,7 @@ func (c *Client) Start() {
 func (c *Client) Close() {
 	c.rl.Close()
 }
+
 func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 	printMenu()
 	line, _ := c.rl.Readline()
@@ -117,6 +161,29 @@ func (c *Client) getData() {
 	}
 	c.chooseAction(c.getLoginPassword, c.getTextData, c.getBinaryData, c.getBankCardData)
 }
+
+func printMenu() {
+	fmt.Println("Choose data type:")
+	fmt.Println("1. Login/Password")
+	fmt.Println("2. Text data")
+	fmt.Println("3. Binary data")
+	fmt.Println("4. Bank card data")
+}
+func getTableNameByChoice(choice string) (string, bool) {
+	switch choice {
+	case "1":
+		return "UserCredentials", true
+	case "2":
+		return "CreditCardData", true
+	case "3":
+		return "TextData", true
+	case "4":
+		return "FilesData", true
+	default:
+		return "", false
+	}
+}
+
 func (c *Client) addData() {
 	fmt.Println("Add data:", c.userID)
 	if c.userID == 0 {
@@ -180,9 +247,32 @@ func (c *Client) login() {
 		if err != nil {
 			fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
 		}
+
+		encryptedUserID, err := c.enc.Encrypt(strconv.Itoa(c.userID))
+		if err != nil {
+			fmt.Printf("Ошибка при шифровании userID: %s\n", err)
+			return
+		}
+
+		// Получите текущее время и преобразуйте его в строку
+		sessionStart := time.Now().Format(time.RFC3339)
+
+		// Запишите userID и время начала сеанса в файл
+		err = os.WriteFile("session.dat", []byte(encryptedUserID+"\n"+sessionStart), 0600)
+		if err != nil {
+			fmt.Printf("Ошибка при записи userID в файл: %s\n", err)
+			return
+		}
+
 	}
 }
 
+// Метод Logout в модуле client
+func (c *Client) Logout() {
+	fmt.Println("Выход из системы.")
+	c.userID = 0
+	os.Remove("session.dat")
+}
 func (c *Client) list() {
 	if c.userID == 0 {
 		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
@@ -581,26 +671,5 @@ func (c *Client) DeleteData() {
 		}
 	} else {
 		fmt.Println("No entry found with the given id or meta_info.")
-	}
-}
-func printMenu() {
-	fmt.Println("Choose data type:")
-	fmt.Println("1. Login/Password")
-	fmt.Println("2. Text data")
-	fmt.Println("3. Binary data")
-	fmt.Println("4. Bank card data")
-}
-func getTableNameByChoice(choice string) (string, bool) {
-	switch choice {
-	case "1":
-		return "UserCredentials", true
-	case "2":
-		return "CreditCardData", true
-	case "3":
-		return "TextData", true
-	case "4":
-		return "FilesData", true
-	default:
-		return "", false
 	}
 }

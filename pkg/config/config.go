@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 type Options struct {
@@ -13,6 +14,7 @@ type Options struct {
 	FileStoragePath string
 	ServerURL       string
 	SyncWithServer  bool
+	SessionDuration time.Duration
 }
 
 func NewConfig() *Options {
@@ -65,5 +67,6 @@ func NewConfig() *Options {
 		FileStoragePath: *fileStoragePath,
 		ServerURL:       *serverURL,
 		SyncWithServer:  *syncWithServer,
+		SessionDuration: time.Hour,
 	}
 }
