@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -27,7 +28,15 @@ func NewConfig() *Options {
 		if err != nil {
 			log.Fatal(err)
 		}
-		*fileStoragePath = home
+		*fileStoragePath = filepath.Join(home, "gkeeper")
+
+		// Создание каталога gkeeper, если он не существует
+		if _, err := os.Stat(*fileStoragePath); os.IsNotExist(err) {
+			err = os.Mkdir(*fileStoragePath, 0755)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 
 	// Check if corresponding environment variables are set and override the values if present.

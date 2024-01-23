@@ -39,26 +39,23 @@ func (c *Client) Start() {
 	}
 
 	commands := map[string]func(){
-		"add":      c.addData,
-		"edit":     c.editData,
-		"ls":       c.list,
-		"rm":       c.DeleteData,
-		"get":      c.getData,
+		"add":  c.addData,
+		"edit": c.editData,
+		"ls":   c.list,
+		"rm":   c.DeleteData,
+
 		"register": c.register,
 		"login":    c.login,
+		"get":      c.getData,
 	}
 
 	for use, runFunc := range commands {
-		runFunc := runFunc //fix error
+		localRunFunc := runFunc // Создаем локальную переменную
 		command := &cobra.Command{
 			Use:   use,
 			Short: use,
 			Run: func(cmd *cobra.Command, args []string) {
-				if c.userID == 0 && use != "register" && use != "login" {
-					fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
-					return
-				}
-				runFunc()
+				localRunFunc() // Используем локальную переменную
 			},
 		}
 		rootCmd.AddCommand(command)
@@ -69,6 +66,7 @@ func (c *Client) Start() {
 		panic(err)
 	}
 }
+
 func (c *Client) Close() {
 	c.rl.Close()
 }
@@ -112,23 +110,39 @@ func (c *Client) selectData() (string, string) {
 	return tableName, id
 }
 func (c *Client) getData() {
+	fmt.Println("Get data:")
+	if c.userID == 0 {
+		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		return
+	}
 	c.chooseAction(c.getLoginPassword, c.getTextData, c.getBinaryData, c.getBankCardData)
 }
 func (c *Client) addData() {
+	fmt.Println("Add data:", c.userID)
+	if c.userID == 0 {
+		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		return
+	}
 	c.chooseAction(c.addLoginPassword, c.addTextData, c.addBinaryData, c.addBankCardData)
 }
 func (c *Client) editData() {
+	if c.userID == 0 {
+		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		return
+	}
 	c.chooseAction(c.editLoginPassword, c.editTextData, c.editBinaryData, c.editBankCardData)
 }
 
 // Реализация функции регистрации
 func (c *Client) register() {
+	fmt.Println("Регистрация:")
 	c.rl.SetPrompt("Введите имя пользователя: ")
 	username, _ := c.rl.Readline()
 
 	c.rl.SetPrompt("Введите пароль: ")
+	c.rl.Config.EnableMask = true
 	password, _ := c.rl.Readline()
-
+	c.rl.Config.EnableMask = false
 	// Вызовите функцию регистрации в вашем сервисе
 	err := c.service.Register(username, password)
 	if err != nil {
@@ -138,11 +152,14 @@ func (c *Client) register() {
 	}
 }
 func (c *Client) login() {
+	fmt.Println("Вход:")
 	c.rl.SetPrompt("Введите имя пользователя: ")
 	username, _ := c.rl.Readline()
 
 	c.rl.SetPrompt("Введите пароль: ")
+	c.rl.Config.EnableMask = true
 	password, _ := c.rl.Readline()
+	c.rl.Config.EnableMask = false
 
 	// Вызовите функцию входа в систему в вашем сервисе
 	userID, err := c.service.Login(username, password)
@@ -167,6 +184,10 @@ func (c *Client) login() {
 }
 
 func (c *Client) list() {
+	if c.userID == 0 {
+		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		return
+	}
 	printMenu()
 	line, _ := c.rl.Readline()
 	tableName, valid := getTableNameByChoice(strings.TrimSpace(line))
@@ -495,6 +516,10 @@ func (c *Client) editBankCardData() {
 	}
 }
 func (c *Client) DeleteData() {
+	if c.userID == 0 {
+		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		return
+	}
 	printMenu()
 
 	line, _ := c.rl.Readline()

@@ -252,6 +252,7 @@ func (s *Service) ClearData(user_id int, table string) error {
 	return err
 }
 func (s *Service) DeleteAllFiles() error {
+
 	// Получаем список всех файлов в каталоге
 	files, err := os.ReadDir(s.opt.FileStoragePath)
 	if err != nil {
