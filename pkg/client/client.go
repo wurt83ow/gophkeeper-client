@@ -1,18 +1,17 @@
 package client
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
 	"fmt"
-	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/chzyer/readline"
 	"github.com/spf13/cobra"
+	"github.com/wurt83ow/gophkeeper-client/pkg/config"
+	"github.com/wurt83ow/gophkeeper-client/pkg/encription"
 	"github.com/wurt83ow/gophkeeper-client/pkg/services"
 )
 
@@ -20,17 +19,19 @@ type ActionFunc func()
 type Client struct {
 	rl      *readline.Instance
 	service *services.Service
-	userID  int // добавляем поле для хранения идентификатора текущего пользователя
+	enc     *encription.Enc
+	opt     *config.Options
+
+	userID int // добавляем поле для хранения идентификатора текущего пользователя
 }
 
-func NewClient(service *services.Service) *Client {
+func NewClient(service *services.Service, enc *encription.Enc, opt *config.Options) *Client {
 	rl, err := readline.New("> ")
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &Client{rl: rl, service: service}
+	return &Client{rl: rl, service: service, enc: enc, opt: opt}
 }
-
 func (c *Client) Start() {
 	rootCmd := &cobra.Command{
 		Use:   "gophkeeper",
@@ -68,11 +69,9 @@ func (c *Client) Start() {
 		panic(err)
 	}
 }
-
 func (c *Client) Close() {
 	c.rl.Close()
 }
-
 func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 	printMenu()
 	line, _ := c.rl.Readline()
@@ -89,53 +88,6 @@ func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 		fmt.Println("Invalid choice")
 	}
 }
-
-func (c *Client) getData() {
-	c.chooseAction(c.getLoginPassword, c.getTextData, c.getBinaryData, c.getBankCardData)
-}
-
-func (c *Client) addData() {
-	c.chooseAction(c.addLoginPassword, c.addTextData, c.addBinaryData, c.addBankCardData)
-}
-
-func (c *Client) editData() {
-	c.chooseAction(c.editLoginPassword, c.editTextData, c.editBinaryData, c.editBankCardData)
-}
-
-// Реализация функции регистрации
-func (c *Client) register() {
-	c.rl.SetPrompt("Введите имя пользователя: ")
-	username, _ := c.rl.Readline()
-
-	c.rl.SetPrompt("Введите пароль: ")
-	password, _ := c.rl.Readline()
-
-	// Вызовите функцию регистрации в вашем сервисе
-	err := c.service.Register(username, password)
-	if err != nil {
-		fmt.Printf("Ошибка при регистрации: %s\n", err)
-	} else {
-		fmt.Println("Регистрация прошла успешно!")
-	}
-}
-
-func (c *Client) login() {
-	c.rl.SetPrompt("Введите имя пользователя: ")
-	username, _ := c.rl.Readline()
-
-	c.rl.SetPrompt("Введите пароль: ")
-	password, _ := c.rl.Readline()
-
-	// Вызовите функцию входа в систему в вашем сервисе
-	userID, err := c.service.Login(username, password)
-	if err != nil {
-		fmt.Printf("Ошибка при входе в систему: %s\n", err)
-	} else {
-		c.userID = userID
-		fmt.Println("Вход в систему прошел успешно!")
-	}
-}
-
 func (c *Client) selectData() (string, string) {
 	printMenu()
 	line, _ := c.rl.Readline()
@@ -159,6 +111,60 @@ func (c *Client) selectData() (string, string) {
 
 	return tableName, id
 }
+func (c *Client) getData() {
+	c.chooseAction(c.getLoginPassword, c.getTextData, c.getBinaryData, c.getBankCardData)
+}
+func (c *Client) addData() {
+	c.chooseAction(c.addLoginPassword, c.addTextData, c.addBinaryData, c.addBankCardData)
+}
+func (c *Client) editData() {
+	c.chooseAction(c.editLoginPassword, c.editTextData, c.editBinaryData, c.editBankCardData)
+}
+
+// Реализация функции регистрации
+func (c *Client) register() {
+	c.rl.SetPrompt("Введите имя пользователя: ")
+	username, _ := c.rl.Readline()
+
+	c.rl.SetPrompt("Введите пароль: ")
+	password, _ := c.rl.Readline()
+
+	// Вызовите функцию регистрации в вашем сервисе
+	err := c.service.Register(username, password)
+	if err != nil {
+		fmt.Printf("Ошибка при регистрации: %s\n", err)
+	} else {
+		fmt.Println("Регистрация прошла успешно!")
+	}
+}
+func (c *Client) login() {
+	c.rl.SetPrompt("Введите имя пользователя: ")
+	username, _ := c.rl.Readline()
+
+	c.rl.SetPrompt("Введите пароль: ")
+	password, _ := c.rl.Readline()
+
+	// Вызовите функцию входа в систему в вашем сервисе
+	userID, err := c.service.Login(username, password)
+	if err != nil {
+		fmt.Printf("Ошибка при входе в систему: %s\n", err)
+	} else {
+		c.userID = userID
+		fmt.Println("Вход в систему прошел успешно!")
+
+		// Удаление всех файлов
+		err = c.service.DeleteAllFiles()
+		if err != nil {
+			fmt.Printf("Ошибка при удалении файлов: %s\n", err)
+		}
+
+		// Здесь начинается новая сессия
+		err = c.service.SyncAllData(userID)
+		if err != nil {
+			fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
+		}
+	}
+}
 
 func (c *Client) list() {
 	printMenu()
@@ -177,7 +183,6 @@ func (c *Client) list() {
 		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
 	}
 }
-
 func (c *Client) getLoginPassword() {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
@@ -191,7 +196,6 @@ func (c *Client) getLoginPassword() {
 		fmt.Println("Data retrieved successfully!")
 	}
 }
-
 func (c *Client) getTextData() {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
@@ -205,7 +209,6 @@ func (c *Client) getTextData() {
 		fmt.Println("Data retrieved successfully!")
 	}
 }
-
 func (c *Client) getBinaryData() {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
@@ -220,7 +223,6 @@ func (c *Client) getBinaryData() {
 		fmt.Println("Data retrieved successfully!")
 	}
 }
-
 func (c *Client) getBankCardData() {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
@@ -234,7 +236,6 @@ func (c *Client) getBankCardData() {
 		fmt.Println("Data retrieved successfully!")
 	}
 }
-
 func (c *Client) addLoginPassword() {
 	for {
 		c.rl.SetPrompt("Choose a title (meta-information): ")
@@ -290,46 +291,65 @@ func (c *Client) addBinaryData() {
 	title, _ := c.rl.Readline()
 	c.rl.SetPrompt("Specify the file path: ")
 	filePath, _ := c.rl.Readline()
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		fmt.Println("File not found!")
-	} else {
-		// Read the file
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			log.Fatalf("Failed to read file: %s", err)
-		}
-		// Encrypt the data
-		block, err := aes.NewCipher([]byte("example key 1234")) // !!!Replace with 16, 24, or 32 byte key
-		if err != nil {
-			log.Fatalf("Failed to create cipher: %s", err)
-		}
-		gcm, err := cipher.NewGCM(block)
-		if err != nil {
-			log.Fatalf("Failed to create GCM: %s", err)
-		}
-		nonce := make([]byte, gcm.NonceSize())
-		if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-			log.Fatalf("Failed to create nonce: %s", err)
-		}
-		ciphertext := gcm.Seal(nonce, nonce, data, nil)
-		// Write the encrypted data to a new file
-		err = os.WriteFile(title+".enc", ciphertext, 0644)
-		if err != nil {
-			log.Fatalf("Failed to write file: %s", err)
-		}
-		fileData := map[string]string{
-			"path":      filePath,
-			"meta_info": title,
-		}
 
-		err = c.service.AddData(c.userID, "FilesData", fileData)
-		if err != nil {
-			fmt.Printf("Failed to add data: %s\n", err)
-			return
-		}
-		fmt.Printf("Title: %s, File: %s\n", title, filePath)
-		fmt.Println("Data added successfully!")
+	// Проверяем, существует ли файл
+	info, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		fmt.Println("File not found!")
+		return
 	}
+
+	// Проверяем размер файла
+	if info.Size() > int64(c.opt.MaxFileSize) {
+		fmt.Println("File is too large!")
+		return
+	}
+
+	// Читаем файл
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Printf("Failed to read file: %s\n", err)
+		return
+	}
+
+	// Шифруем данные файла
+	encryptedData, err := c.enc.EncryptData(data)
+	if err != nil {
+		fmt.Printf("Failed to encrypt file: %s\n", err)
+		return
+	}
+
+	// Получаем хеш зашифрованных данных
+	hash := c.enc.GetHash(encryptedData)
+
+	// Сохраняем зашифрованные данные в файловой системе
+	encryptedFilePath := filepath.Join(c.opt.FileStoragePath, hash)
+	err = os.WriteFile(encryptedFilePath, encryptedData, 0644)
+	if err != nil {
+		fmt.Printf("Failed to write file: %s\n", err)
+		return
+	}
+
+	// Добавляем метаданные файла в сервис
+	fileData := map[string]string{
+		"path":      hash, // Сохраняем хеш вместо пути к файлу
+		"meta_info": title,
+	}
+	err = c.service.AddData(c.userID, "FilesData", fileData)
+	if err != nil {
+		fmt.Printf("Failed to add data: %s\n", err)
+		return
+	}
+
+	// Отправляем файл на сервер
+	err = c.service.SyncFile(c.userID, encryptedFilePath)
+	if err != nil {
+		fmt.Printf("Failed to sync file: %s\n", err)
+		return
+	}
+
+	fmt.Printf("Title: %s, File: %s\n", title, filePath)
+	fmt.Println("Data added successfully!")
 }
 func (c *Client) addBankCardData() {
 	digitsOnly, _ := regexp.Compile(`^\d+$`)
@@ -379,7 +399,6 @@ func (c *Client) addBankCardData() {
 	fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n", title, cardNumber, expiryDate, cvv)
 	fmt.Println("Data added successfully!")
 }
-
 func (c *Client) editLoginPassword() {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
@@ -406,7 +425,6 @@ func (c *Client) editLoginPassword() {
 		fmt.Println("Data edited successfully!")
 	}
 }
-
 func (c *Client) editTextData() {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
@@ -428,7 +446,6 @@ func (c *Client) editTextData() {
 		fmt.Println("Data edited successfully!")
 	}
 }
-
 func (c *Client) editBinaryData() {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
@@ -450,7 +467,6 @@ func (c *Client) editBinaryData() {
 		fmt.Println("Data edited successfully!")
 	}
 }
-
 func (c *Client) editBankCardData() {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
@@ -478,7 +494,6 @@ func (c *Client) editBankCardData() {
 		fmt.Println("Data edited successfully!")
 	}
 }
-
 func (c *Client) DeleteData() {
 	printMenu()
 
@@ -543,7 +558,6 @@ func (c *Client) DeleteData() {
 		fmt.Println("No entry found with the given id or meta_info.")
 	}
 }
-
 func printMenu() {
 	fmt.Println("Choose data type:")
 	fmt.Println("1. Login/Password")

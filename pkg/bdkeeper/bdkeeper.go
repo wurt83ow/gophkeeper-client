@@ -279,11 +279,11 @@ func (k *Keeper) GetAllData(table string, columns ...string) ([]map[string]strin
 	return data, nil
 }
 
-func (k *Keeper) ClearData(table string) error {
-	stmt, err := k.db.Prepare(fmt.Sprintf("DELETE FROM %s", table))
+func (k *Keeper) ClearData(userID int, table string) error {
+	stmt, err := k.db.Prepare(fmt.Sprintf("DELETE FROM %s WHERE user_id = ?", table))
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec()
+	_, err = stmt.Exec(userID)
 	return err
 }

@@ -2,8 +2,12 @@ package services
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/wurt83ow/gophkeeper-client/pkg/bdkeeper"
+	"github.com/wurt83ow/gophkeeper-client/pkg/config"
 	"github.com/wurt83ow/gophkeeper-client/pkg/encription"
 	"github.com/wurt83ow/gophkeeper-client/pkg/gksync"
 )
@@ -12,13 +16,15 @@ type Service struct {
 	keeper *bdkeeper.Keeper
 	sync   *gksync.Sync
 	enc    *encription.Enc
+	opt    *config.Options
 }
 
-func NewServices(keeper *bdkeeper.Keeper, sync *gksync.Sync, enc *encription.Enc) *Service {
+func NewServices(keeper *bdkeeper.Keeper, sync *gksync.Sync, enc *encription.Enc, opt *config.Options) *Service {
 	return &Service{
 		keeper: keeper,
 		sync:   sync,
 		enc:    enc,
+		opt:    opt,
 	}
 }
 
@@ -77,6 +83,51 @@ func (s *Service) Login(username string, password string) (int, error) {
 	return userID, nil
 }
 
+func (s *Service) SyncFile(userID int, filePath string) error {
+	// Читаем файл
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("Ошибка при чтении файла: %v", err)
+	}
+
+	// Отправляем данные на сервер
+	err = s.sync.SendFile(userID, data)
+	if err != nil {
+		return fmt.Errorf("Ошибка при отправке файла на сервер: %v", err)
+	}
+
+	return nil
+}
+
+func (s *Service) SyncAllData(user_id int) error {
+	// Список всех таблиц данных
+	tables := []string{"UserCredentials", "CreditCardData", "TextData", "FilesData"}
+
+	// Проходим по каждой таблице
+	for _, table := range tables {
+		// Получаем все данные из таблицы на сервере
+		data, err := s.sync.GetAllData(user_id, table)
+		if err != nil {
+			return fmt.Errorf("Ошибка при получении данных из таблицы %s: %v", table, err)
+		}
+
+		// Очищаем соответствующую таблицу в локальной базе данных
+		err = s.keeper.ClearData(user_id, table)
+		if err != nil {
+			return fmt.Errorf("Ошибка при очистке таблицы %s: %v", table, err)
+		}
+
+		// Добавляем все полученные данные в локальную базу данных
+		for _, row := range data {
+			err = s.keeper.AddData(user_id, table, row)
+			if err != nil {
+				return fmt.Errorf("Ошибка при добавлении данных в таблицу %s: %v", table, err)
+			}
+		}
+	}
+
+	return nil
+}
 func (s *Service) InitSync(user_id int, table string, columns ...string) error {
 	data, err := s.sync.GetAllData(user_id, table)
 	if err != nil {
@@ -190,7 +241,7 @@ func (s *Service) GetAllData(user_id int, table string, columns ...string) ([]ma
 }
 
 func (s *Service) ClearData(user_id int, table string) error {
-	err := s.keeper.ClearData(table)
+	err := s.keeper.ClearData(user_id, table)
 	if err != nil {
 		return err
 	}
@@ -199,4 +250,21 @@ func (s *Service) ClearData(user_id int, table string) error {
 		err = s.keeper.MarkForSync(user_id, table, nil)
 	}
 	return err
+}
+func (s *Service) DeleteAllFiles() error {
+	// Получаем список всех файлов в каталоге
+	files, err := os.ReadDir(s.opt.FileStoragePath)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		// Удаляем файл
+		err = os.Remove(filepath.Join(s.opt.FileStoragePath, file.Name()))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

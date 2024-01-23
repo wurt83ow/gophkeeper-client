@@ -10,18 +10,23 @@ import (
 )
 
 type Sync struct {
-	serverURL string
+	serverURL      string
+	syncWithServer bool
 }
 
 var ErrNetworkUnavailable = errors.New("network unavailable")
 
-func NewSync(serverURL string) *Sync {
+func NewSync(serverURL string, syncWithServer bool) *Sync {
 	return &Sync{
-		serverURL: serverURL,
+		serverURL:      serverURL,
+		syncWithServer: syncWithServer,
 	}
 }
 
 func (s *Sync) GetData(user_id int, table string, data map[string]string) error {
+	if !s.syncWithServer {
+		return nil
+	}
 	// Преобразовать данные в JSON
 	dataJson, err := json.Marshal(data)
 	if err != nil {
@@ -57,6 +62,9 @@ func (s *Sync) GetData(user_id int, table string, data map[string]string) error 
 }
 
 func (s *Sync) AddData(user_id int, table string, data map[string]string) error {
+	if !s.syncWithServer {
+		return nil
+	}
 	body, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -71,6 +79,9 @@ func (s *Sync) AddData(user_id int, table string, data map[string]string) error 
 }
 
 func (s *Sync) UpdateData(user_id int, table string, data map[string]string) error {
+	if !s.syncWithServer {
+		return nil
+	}
 	body, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -90,6 +101,9 @@ func (s *Sync) UpdateData(user_id int, table string, data map[string]string) err
 }
 
 func (s *Sync) DeleteData(user_id int, table string, id string) error {
+	if !s.syncWithServer {
+		return nil
+	}
 	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/deleteData/%s/%d/%s", s.serverURL, table, user_id, id), nil)
 	if err != nil {
 		return err
@@ -104,6 +118,9 @@ func (s *Sync) DeleteData(user_id int, table string, id string) error {
 }
 
 func (s *Sync) GetAllData(user_id int, table string) ([]map[string]string, error) {
+	if !s.syncWithServer {
+		return nil, nil
+	}
 	// Отправить GET-запрос на сервер
 	resp, err := http.Get(fmt.Sprintf("%s/getAllData/%s/%d", s.serverURL, table, user_id))
 	if err != nil {
@@ -128,6 +145,9 @@ func (s *Sync) GetAllData(user_id int, table string) ([]map[string]string, error
 }
 
 func (s *Sync) ClearData(user_id int, table string) error {
+	if !s.syncWithServer {
+		return nil
+	}
 	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/clearData/%s/%d", s.serverURL, table, user_id), nil)
 	if err != nil {
 		return err
@@ -141,6 +161,9 @@ func (s *Sync) ClearData(user_id int, table string) error {
 	return nil
 }
 func (s *Sync) GetPassword(username string) (string, error) {
+	if !s.syncWithServer {
+		return "", nil
+	}
 	// Отправить GET-запрос на сервер
 	resp, err := http.Get(fmt.Sprintf("%s/getPassword/%s", s.serverURL, username))
 	if err != nil {
@@ -166,6 +189,9 @@ func (s *Sync) GetPassword(username string) (string, error) {
 }
 
 func (s *Sync) GetUserID(username string) (int, error) {
+	if !s.syncWithServer {
+		return 0, nil
+	}
 	// Отправить GET-запрос на сервер
 	resp, err := http.Get(fmt.Sprintf("%s/getUserID/%s", s.serverURL, username))
 	if err != nil {
@@ -188,4 +214,21 @@ func (s *Sync) GetUserID(username string) (int, error) {
 
 	// Возвращаем идентификатор пользователя
 	return userID, nil
+}
+
+func (s *Sync) SendFile(userID int, data []byte) error {
+	if !s.syncWithServer {
+		return nil
+	}
+	resp, err := http.Post(fmt.Sprintf("%s/sendFile/%d", s.serverURL, userID), "application/octet-stream", bytes.NewBuffer(data))
+	if err != nil {
+		return ErrNetworkUnavailable
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server returned status: %s", resp.Status)
+	}
+
+	return nil
 }
