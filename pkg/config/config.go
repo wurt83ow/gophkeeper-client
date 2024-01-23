@@ -67,6 +67,6 @@ func NewConfig() *Options {
 		FileStoragePath: *fileStoragePath,
 		ServerURL:       *serverURL,
 		SyncWithServer:  *syncWithServer,
-		SessionDuration: time.Hour,
+		SessionDuration: time.Minute * 30,
 	}
 }
