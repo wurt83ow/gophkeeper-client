@@ -121,6 +121,7 @@ func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 	line, _ := c.rl.Readline()
 	switch strings.TrimSpace(line) {
 	case "1":
+		fmt.Println("chooseAction1")
 		func1()
 	case "2":
 		func2()
@@ -132,8 +133,9 @@ func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 		fmt.Println("Invalid choice")
 	}
 }
+
 func (c *Client) selectData() (string, string) {
-	printMenu()
+	// printMenu()
 	line, _ := c.rl.Readline()
 	tableName, valid := getTableNameByChoice(line)
 	if !valid {
@@ -174,6 +176,7 @@ func printMenu() {
 func getTableNameByChoice(choice string) (string, bool) {
 	switch choice {
 	case "1":
+		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
 		return "UserCredentials", true
 	case "2":
 		return "CreditCardData", true
@@ -288,40 +291,52 @@ func (c *Client) list() {
 		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
 	}
 }
-func (c *Client) getDataAndPrint(printFunc func(data map[string]string)) {
-	tableName, id := c.selectData()
+func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[string]string)) {
+	data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
+	if len(data) == 0 {
+		fmt.Println("No entries found in the table:", tableName)
+		return
+	}
+
+	for _, entry := range data {
+		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+	}
+
+	c.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
+	id, _ := c.rl.Readline()
+
 	if tableName == "" || id == "" {
 		return
 	}
-	data, err := c.service.GetData(c.userID, tableName, id)
+	newdata, err := c.service.GetData(c.userID, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
-		printFunc(data)
+		printFunc(newdata)
 		fmt.Println("Data retrieved successfully!")
 	}
 }
 
 func (c *Client) getLoginPassword() {
-	c.getDataAndPrint(func(data map[string]string) {
+	c.getDataAndPrint("UserCredentials", func(data map[string]string) {
 		fmt.Printf("Login: %s, Password: %s\n", data["login"], data["password"])
 	})
 }
 
 func (c *Client) getTextData() {
-	c.getDataAndPrint(func(data map[string]string) {
+	c.getDataAndPrint("TextData", func(data map[string]string) {
 		fmt.Printf("Title: %s, Text: %s\n", data["meta_info"], data["data"])
 	})
 }
 
 func (c *Client) getBinaryData() {
-	c.getDataAndPrint(func(data map[string]string) {
+	c.getDataAndPrint("FilesData", func(data map[string]string) {
 		fmt.Printf("Title: %s, File: %s\n", data["meta_info"], data["path"])
 	})
 }
 
 func (c *Client) getBankCardData() {
-	c.getDataAndPrint(func(data map[string]string) {
+	c.getDataAndPrint("CreditCardData", func(data map[string]string) {
 		fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n",
 			data["meta_info"], data["card_number"], data["expiration_date"], data["cvv"])
 	})
@@ -516,6 +531,7 @@ func (c *Client) addBankCardData() {
 }
 
 func (c *Client) editLoginPassword() {
+	fmt.Println("editLoginPassword")
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return

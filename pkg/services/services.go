@@ -209,13 +209,15 @@ func (s *Service) GetAllData(user_id int, table string, columns ...string) ([]ma
 	var data []map[string]string
 	var err error
 
-	// Попытка получить данные из sync, если сеть доступна
-	data, err = s.sync.GetAllData(user_id, table)
+	// Попытка получить данные из keeper
+	data, err = s.keeper.GetAllData(table, columns...)
+
 	if err != nil {
-		if err == gksync.ErrNetworkUnavailable {
-			// Если сеть недоступна, получить данные из keeper
-			data, err = s.keeper.GetAllData(table, columns...)
-			if err != nil {
+		// Если данные не удалось получить из keeper, попытка получить данные из sync
+		data, err = s.sync.GetAllData(user_id, table)
+		if err != nil {
+			if err == gksync.ErrNetworkUnavailable {
+				// Если сеть недоступна, возвращаем ошибку
 				return nil, err
 			}
 
@@ -226,8 +228,6 @@ func (s *Service) GetAllData(user_id int, table string, columns ...string) ([]ma
 					return nil, err // Возвращаем ошибку, если не удалось пометить элемент для синхронизации
 				}
 			}
-		} else {
-			return nil, err // Возвращаем ошибку, если она не связана с недоступностью сети
 		}
 	}
 
