@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 type Sync struct {
@@ -216,11 +217,26 @@ func (s *Sync) GetUserID(username string) (int, error) {
 	return userID, nil
 }
 
-func (s *Sync) SendFile(userID int, data []byte) error {
+func (s *Sync) SendFile(userID int, filePath string) error {
 	if !s.syncWithServer {
 		return nil
 	}
-	resp, err := http.Post(fmt.Sprintf("%s/sendFile/%d", s.serverURL, userID), "application/octet-stream", bytes.NewBuffer(data))
+
+	// Открываем файл
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Создаем новый запрос
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/sendFile/%d", s.serverURL, userID), file)
+	if err != nil {
+		return err
+	}
+
+	// Выполняем запрос
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return ErrNetworkUnavailable
 	}
@@ -228,6 +244,12 @@ func (s *Sync) SendFile(userID int, data []byte) error {
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("server returned status: %s", resp.Status)
+	}
+
+	// Удаляем файл после успешной отправки
+	err = os.Remove(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to delete file: %s", err)
 	}
 
 	return nil

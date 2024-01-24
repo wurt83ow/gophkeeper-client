@@ -1,7 +1,9 @@
 package client
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -233,16 +235,12 @@ func (c *Client) login() {
 		c.userID = userID
 		fmt.Println("Вход в систему прошел успешно!")
 
-		// Удаление всех файлов
-		err = c.service.DeleteAllFiles()
-		if err != nil {
-			fmt.Printf("Ошибка при удалении файлов: %s\n", err)
-		}
-
 		// Здесь начинается новая сессия
-		err = c.service.SyncAllData(userID)
-		if err != nil {
-			fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
+		if c.opt.SyncWithServer {
+			err = c.service.SyncAllData(userID)
+			if err != nil {
+				fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
+			}
 		}
 
 		encryptedUserID, err := c.enc.Encrypt(strconv.Itoa(c.userID))
@@ -401,27 +399,47 @@ func (c *Client) addBinaryData() {
 		return
 	}
 
-	// Читаем файл
-	data, err := os.ReadFile(filePath)
+	// Открываем файл
+	file, err := os.Open(filePath)
 	if err != nil {
-		fmt.Printf("Failed to read file: %s\n", err)
+		fmt.Printf("Failed to open file: %s\n", err)
 		return
 	}
+	defer file.Close()
 
-	// Шифруем данные файла
-	encryptedData, err := c.enc.EncryptData(data)
-	if err != nil {
-		fmt.Printf("Failed to encrypt file: %s\n", err)
-		return
+	// Читаем и шифруем файл по частям
+	var encryptedData []byte
+	hasher := sha256.New()
+	buf := make([]byte, 1024)
+	for {
+		n, err := file.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Printf("Failed to read file: %s\n", err)
+			return
+		}
+
+		data := buf[:n]
+		encryptedPart, err := c.enc.EncryptData(data)
+		if err != nil {
+			fmt.Printf("Failed to encrypt file: %s\n", err)
+			return
+		}
+
+		// Добавляем зашифрованную часть в encryptedData
+		encryptedData = append(encryptedData, encryptedPart...)
+
+		// Обновляем хеш данных
+		hasher.Write(encryptedPart)
 	}
 
-	// Получаем хеш зашифрованных данных
-	hash := c.enc.GetHash(encryptedData)
+	// Получаем окончательный хеш данных
+	hash := hasher.Sum(nil)
 
-	fmt.Println("hash:", hash)
 	// Сохраняем зашифрованные данные в файловой системе
-	encryptedFilePath := filepath.Join(c.opt.FileStoragePath, hash)
-	fmt.Println("encryptedFilePath:", encryptedFilePath)
+	encryptedFilePath := filepath.Join(c.opt.FileStoragePath, fmt.Sprintf("%x", hash))
 	err = os.WriteFile(encryptedFilePath, encryptedData, 0644)
 	if err != nil {
 		fmt.Printf("Failed to write file: %s\n", err)
@@ -430,7 +448,7 @@ func (c *Client) addBinaryData() {
 
 	// Добавляем метаданные файла в сервис
 	fileData := map[string]string{
-		"path":      hash, // Сохраняем хеш вместо пути к файлу
+		"path":      fmt.Sprintf("%x", hash), // Сохраняем хеш вместо пути к файлу
 		"meta_info": title,
 	}
 	err = c.service.AddData(c.userID, "FilesData", fileData)
@@ -449,6 +467,7 @@ func (c *Client) addBinaryData() {
 	fmt.Printf("Title: %s, File: %s\n", title, filePath)
 	fmt.Println("Data added successfully!")
 }
+
 func (c *Client) addBankCardData() {
 	c.addDataRepeatedly("CreditCardData", func() map[string]string {
 		digitsOnly, _ := regexp.Compile(`^\d+$`)

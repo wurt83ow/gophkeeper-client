@@ -84,14 +84,8 @@ func (s *Service) Login(username string, password string) (int, error) {
 }
 
 func (s *Service) SyncFile(userID int, filePath string) error {
-	// Читаем файл
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return fmt.Errorf("Ошибка при чтении файла: %v", err)
-	}
-
 	// Отправляем данные на сервер
-	err = s.sync.SendFile(userID, data)
+	err := s.sync.SendFile(userID, filePath)
 	if err != nil {
 		return fmt.Errorf("Ошибка при отправке файла на сервер: %v", err)
 	}
