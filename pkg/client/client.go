@@ -185,7 +185,6 @@ func getTableNameByChoice(choice string) (string, bool) {
 }
 
 func (c *Client) addData() {
-	fmt.Println("Add data:", c.userID)
 	if c.userID == 0 {
 		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
 		return
@@ -202,7 +201,6 @@ func (c *Client) editData() {
 
 // Реализация функции регистрации
 func (c *Client) register() {
-	fmt.Println("Регистрация:")
 	c.rl.SetPrompt("Введите имя пользователя: ")
 	username, _ := c.rl.Readline()
 
@@ -219,7 +217,6 @@ func (c *Client) register() {
 	}
 }
 func (c *Client) login() {
-	fmt.Println("Вход:")
 	c.rl.SetPrompt("Введите имя пользователя: ")
 	username, _ := c.rl.Readline()
 
@@ -269,7 +266,6 @@ func (c *Client) login() {
 
 // Метод Logout в модуле client
 func (c *Client) Logout() {
-	fmt.Println("Выход из системы.")
 	c.userID = 0
 	os.Remove("session.dat")
 }
@@ -294,61 +290,65 @@ func (c *Client) list() {
 		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
 	}
 }
-func (c *Client) getLoginPassword() {
+func (c *Client) getDataAndPrint(printFunc func(data map[string]string)) {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
 		return
 	}
-	loginPasswordData, err := c.service.GetData(c.userID, tableName, id)
+	data, err := c.service.GetData(c.userID, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
-		fmt.Printf("Login: %s, Password: %s\n", loginPasswordData["login"], loginPasswordData["password"])
+		printFunc(data)
 		fmt.Println("Data retrieved successfully!")
 	}
 }
-func (c *Client) getTextData() {
-	tableName, id := c.selectData()
-	if tableName == "" || id == "" {
-		return
-	}
-	textData, err := c.service.GetData(c.userID, tableName, id)
-	if err != nil {
-		fmt.Printf("Failed to get data: %s\n", err)
-	} else {
-		fmt.Printf("Title: %s, Text: %s\n", textData["meta_info"], textData["data"])
-		fmt.Println("Data retrieved successfully!")
-	}
-}
-func (c *Client) getBinaryData() {
-	tableName, id := c.selectData()
-	if tableName == "" || id == "" {
-		return
-	}
 
-	binaryData, err := c.service.GetData(c.userID, tableName, id)
-	if err != nil {
-		fmt.Printf("Failed to get data: %s\n", err)
-	} else {
-		fmt.Printf("Title: %s, File: %s\n", binaryData["meta_info"], binaryData["path"])
-		fmt.Println("Data retrieved successfully!")
-	}
+func (c *Client) getLoginPassword() {
+	c.getDataAndPrint(func(data map[string]string) {
+		fmt.Printf("Login: %s, Password: %s\n", data["login"], data["password"])
+	})
 }
+
+func (c *Client) getTextData() {
+	c.getDataAndPrint(func(data map[string]string) {
+		fmt.Printf("Title: %s, Text: %s\n", data["meta_info"], data["data"])
+	})
+}
+
+func (c *Client) getBinaryData() {
+	c.getDataAndPrint(func(data map[string]string) {
+		fmt.Printf("Title: %s, File: %s\n", data["meta_info"], data["path"])
+	})
+}
+
 func (c *Client) getBankCardData() {
-	tableName, id := c.selectData()
-	if tableName == "" || id == "" {
-		return
-	}
-	bankCardData, err := c.service.GetData(c.userID, tableName, id)
-	if err != nil {
-		fmt.Printf("Failed to get data: %s\n", err)
-	} else {
-		fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n", bankCardData["meta_info"], bankCardData["card_number"], bankCardData["expiration_date"], bankCardData["cvv"])
-		fmt.Println("Data retrieved successfully!")
+	c.getDataAndPrint(func(data map[string]string) {
+		fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n",
+			data["meta_info"], data["card_number"], data["expiration_date"], data["cvv"])
+	})
+}
+
+func (c *Client) addDataRepeatedly(dataType string, dataFunc func() map[string]string, printFunc func(data map[string]string)) {
+	for {
+		data := dataFunc()
+		err := c.service.AddData(c.userID, dataType, data)
+		if err != nil {
+			fmt.Printf("Failed to add data: %s\n", err)
+			return
+		}
+		printFunc(data)
+		fmt.Println("Data added successfully!")
+		c.rl.SetPrompt("Do you want to continue adding data? (yes/no): ")
+		choice, _ := c.rl.Readline()
+		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
+			break
+		}
 	}
 }
+
 func (c *Client) addLoginPassword() {
-	for {
+	c.addDataRepeatedly("UserCredentials", func() map[string]string {
 		c.rl.SetPrompt("Choose a title (meta-information): ")
 		title, _ := c.rl.Readline()
 		c.rl.SetPrompt("Enter login: ")
@@ -357,46 +357,31 @@ func (c *Client) addLoginPassword() {
 		c.rl.Config.EnableMask = true
 		password, _ := c.rl.Readline()
 		c.rl.Config.EnableMask = false
-		data := map[string]string{
+		return map[string]string{
 			"login":     login,
 			"password":  password,
 			"meta_info": title,
 		}
-		err := c.service.AddData(c.userID, "UserCredentials", data)
-		if err != nil {
-			fmt.Printf("Failed to add data: %s\n", err)
-			return
-		}
-
-		fmt.Printf("Login: %s, Password: %s\n", login, password)
-		fmt.Println("Data added successfully!")
-
-		c.rl.SetPrompt("Do you want to continue adding data? (yes/no): ")
-		choice, _ := c.rl.Readline()
-		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
-			break
-		}
-	}
+	}, func(data map[string]string) {
+		fmt.Printf("Login: %s, Password: %s\n", data["login"], data["password"])
+	})
 }
+
 func (c *Client) addTextData() {
-	c.rl.SetPrompt("Choose a title (meta-information): ")
-	title, _ := c.rl.Readline()
-	c.rl.SetPrompt("Enter text data: ")
-	text, _ := c.rl.Readline()
-	data := map[string]string{
-		"data":      text,
-		"meta_info": title,
-	}
-
-	err := c.service.AddData(c.userID, "TextData", data)
-	if err != nil {
-		fmt.Printf("Failed to add data: %s\n", err)
-		return
-	}
-
-	fmt.Printf("Title: %s, Text: %s\n", title, text)
-	fmt.Println("Data added successfully!")
+	c.addDataRepeatedly("TextData", func() map[string]string {
+		c.rl.SetPrompt("Choose a title (meta-information): ")
+		title, _ := c.rl.Readline()
+		c.rl.SetPrompt("Enter text data: ")
+		text, _ := c.rl.Readline()
+		return map[string]string{
+			"data":      text,
+			"meta_info": title,
+		}
+	}, func(data map[string]string) {
+		fmt.Printf("Title: %s, Text: %s\n", data["meta_info"], data["data"])
+	})
 }
+
 func (c *Client) addBinaryData() {
 	c.rl.SetPrompt("Choose a title (meta-information): ")
 	title, _ := c.rl.Readline()
@@ -433,8 +418,10 @@ func (c *Client) addBinaryData() {
 	// Получаем хеш зашифрованных данных
 	hash := c.enc.GetHash(encryptedData)
 
+	fmt.Println("hash:", hash)
 	// Сохраняем зашифрованные данные в файловой системе
 	encryptedFilePath := filepath.Join(c.opt.FileStoragePath, hash)
+	fmt.Println("encryptedFilePath:", encryptedFilePath)
 	err = os.WriteFile(encryptedFilePath, encryptedData, 0644)
 	if err != nil {
 		fmt.Printf("Failed to write file: %s\n", err)
@@ -463,53 +450,52 @@ func (c *Client) addBinaryData() {
 	fmt.Println("Data added successfully!")
 }
 func (c *Client) addBankCardData() {
-	digitsOnly, _ := regexp.Compile(`^\d+$`)
-	dateFormat, _ := regexp.Compile(`^\d{2}/\d{2}$`)
-	c.rl.SetPrompt("Choose a title (meta-information): ")
-	title, _ := c.rl.Readline()
-	var cardNumber, expiryDate, cvv string
-	for {
-		c.rl.SetPrompt("Enter card number: ")
-		cardNumber, _ = c.rl.Readline()
-		if !digitsOnly.MatchString(cardNumber) {
-			fmt.Println("Card number can only contain digits!")
-		} else {
-			break
+	c.addDataRepeatedly("CreditCardData", func() map[string]string {
+		digitsOnly, _ := regexp.Compile(`^\d+$`)
+		dateFormat, _ := regexp.Compile(`^\d{2}/\d{2}$`)
+		c.rl.SetPrompt("Choose a title (meta-information): ")
+		title, _ := c.rl.Readline()
+		var cardNumber, expiryDate, cvv string
+		for {
+			c.rl.SetPrompt("Enter card number: ")
+			cardNumber, _ = c.rl.Readline()
+			if !digitsOnly.MatchString(cardNumber) {
+				fmt.Println("Card number can only contain digits!")
+			} else {
+				break
+			}
 		}
-	}
-	for {
-		c.rl.SetPrompt("Enter expiry date (MM/YY): ")
-		expiryDate, _ = c.rl.Readline()
-		if !dateFormat.MatchString(expiryDate) {
-			fmt.Println("Expiry date must be in the format MM/YY!")
-		} else {
-			break
+		for {
+			c.rl.SetPrompt("Enter expiry date (MM/YY): ")
+			expiryDate, _ = c.rl.Readline()
+			if !dateFormat.MatchString(expiryDate) {
+				fmt.Println("Expiry date must be in the format MM/YY!")
+			} else {
+				break
+			}
 		}
-	}
-	for {
-		c.rl.SetPrompt("Enter CVV: ")
-		cvv, _ = c.rl.Readline()
-		if !digitsOnly.MatchString(cvv) {
-			fmt.Println("CVV can only contain digits!")
-		} else {
-			break
+		for {
+			c.rl.SetPrompt("Enter CVV: ")
+			c.rl.Config.EnableMask = true
+			cvv, _ = c.rl.Readline()
+			c.rl.Config.EnableMask = false
+			if !digitsOnly.MatchString(cvv) {
+				fmt.Println("CVV can only contain digits!")
+			} else {
+				break
+			}
 		}
-	}
-	cardData := map[string]string{
-		"card_number":     cardNumber,
-		"expiration_date": expiryDate,
-		"cvv":             cvv,
-		"meta_info":       title,
-	}
-
-	err := c.service.AddData(c.userID, "CreditCardData", cardData)
-	if err != nil {
-		fmt.Printf("Failed to add data: %s\n", err)
-		return
-	}
-	fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n", title, cardNumber, expiryDate, cvv)
-	fmt.Println("Data added successfully!")
+		return map[string]string{
+			"card_number":     cardNumber,
+			"expiration_date": expiryDate,
+			"cvv":             cvv,
+			"meta_info":       title,
+		}
+	}, func(data map[string]string) {
+		fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s\n", data["meta_info"], data["card_number"], data["expiration_date"])
+	})
 }
+
 func (c *Client) editLoginPassword() {
 	tableName, id := c.selectData()
 	if tableName == "" || id == "" {
