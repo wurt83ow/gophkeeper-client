@@ -361,7 +361,7 @@ func (c *Client) addLoginPassword() {
 			"meta_info": title,
 		}
 	}, func(data map[string]string) {
-		fmt.Printf("Login: %s, Password: %s\n", data["login"], data["password"])
+		fmt.Printf("Login: %s", data["login"])
 	})
 }
 
