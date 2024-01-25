@@ -227,19 +227,66 @@ func (k *Keeper) DeleteData(user_id int, table string, id string, meta_info stri
 	return err
 }
 
-func (k *Keeper) GetData(user_id int, table string, columns ...string) (map[string]string, error) {
-	row := k.db.QueryRow(fmt.Sprintf("SELECT %s FROM %s WHERE user_id = ?", strings.Join(columns, ","), table), user_id)
-	values := make([]interface{}, len(columns))
-	for i := range values {
-		values[i] = new(sql.RawBytes)
-	}
-	err := row.Scan(values...)
+// func (k *Keeper) GetData(user_id int, table string, columns ...string) (map[string]string, error) {
+// 	fmt.Println(user_id, table, columns)
+// 	row := k.db.QueryRow(fmt.Sprintf("SELECT %s FROM %s WHERE user_id = ?", strings.Join(columns, ","), table), user_id)
+// 	values := make([]interface{}, len(columns))
+// 	for i := range values {
+// 		var value string
+// 		values[i] = &value
+// 	}
+// 	err := row.Scan(values...)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	data := make(map[string]string)
+// 	for i, column := range columns {
+// 		fmt.Println(columns)
+// 		data[column] = *(values[i].(*string))
+// 	}
+// 	return data, nil
+// }
+
+func (k *Keeper) GetData(user_id int, table string, id int) (map[string]string, error) {
+	// Получаем все колонки таблицы
+	columns, err := k.db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get columns: %w", err)
+	}
+
+	var cols []string
+	for columns.Next() {
+		var col struct {
+			Cid        int
+			Name       string
+			Type       string
+			NotNull    bool
+			Dflt_value *string
+			Pk         int
+		}
+		err := columns.Scan(&col.Cid, &col.Name, &col.Type, &col.NotNull, &col.Dflt_value, &col.Pk)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan column: %w", err)
+		}
+		// Исключаем ненужные столбцы
+		if col.Name != "id" && col.Name != "deleted" && col.Name != "user_id" && col.Name != "updated_at" {
+			cols = append(cols, col.Name)
+		}
+	}
+
+	row := k.db.QueryRow(fmt.Sprintf("SELECT %s FROM %s WHERE id = ? AND deleted = false", strings.Join(cols, ","), table), id)
+	values := make([]interface{}, len(cols))
+	for i := range values {
+		var value string
+		values[i] = &value
+	}
+	err = row.Scan(values...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan row: %w", err)
 	}
 	data := make(map[string]string)
-	for i, column := range columns {
-		data[column] = string(*values[i].(*sql.RawBytes))
+	for i, column := range cols {
+		data[column] = *(values[i].(*string))
 	}
 	return data, nil
 }

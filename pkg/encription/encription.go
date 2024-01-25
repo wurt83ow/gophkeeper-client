@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/bcrypt"
@@ -25,10 +26,43 @@ func NewEnc(key string) *Enc {
 	}
 }
 
+// func (e *Enc) Decrypt(encryptedText string) (string, error) {
+// 	ciphertext, err := base64.URLEncoding.DecodeString(encryptedText)
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	block, err := aes.NewCipher(e.key)
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	if len(ciphertext) < aes.BlockSize {
+// 		return "", errors.New("ciphertext too short")
+// 	}
+
+// 	iv := ciphertext[:aes.BlockSize]
+// 	ciphertext = ciphertext[aes.BlockSize:]
+
+// 	stream := cipher.NewCFBDecrypter(block, iv)
+// 	stream.XORKeyStream(ciphertext, ciphertext)
+
+// 	return string(ciphertext), nil
+// }
+
+func isBase64(s string) bool {
+	_, err := base64.URLEncoding.DecodeString(s)
+	return err == nil
+}
+
 func (e *Enc) Decrypt(encryptedText string) (string, error) {
+
+	if !isBase64(encryptedText) {
+		return "", errors.New("invalid base64 data")
+	}
 	ciphertext, err := base64.URLEncoding.DecodeString(encryptedText)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to decode base64 data: %w", err)
 	}
 
 	block, err := aes.NewCipher(e.key)

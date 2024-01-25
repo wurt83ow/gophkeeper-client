@@ -136,15 +136,32 @@ func (s *Service) InitSync(user_id int, table string, columns ...string) error {
 	return nil
 }
 
-func (s *Service) GetData(user_id int, table string, columns ...string) (map[string]string, error) {
-	data, err := s.keeper.GetData(user_id, table, columns...)
+func (s *Service) GetData(user_id int, table string, id int) (map[string]string, error) {
+	// Получаем данные из keeper
+	data, err := s.keeper.GetData(user_id, table, id)
 	if err != nil {
 		return nil, err
 	}
+
+	// Пытаемся синхронизировать данные
 	err = s.sync.GetData(user_id, table, data)
 	if err == gksync.ErrNetworkUnavailable {
+		// Если сеть недоступна, помечаем данные для синхронизации
 		err = s.keeper.MarkForSync(user_id, table, data)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	// Расшифровка данных перед возвратом
+	for key, value := range data {
+		decryptedValue, err := s.enc.Decrypt(value)
+		if err != nil {
+			return nil, err
+		}
+		data[key] = decryptedValue
+	}
+
 	return data, err
 }
 
@@ -211,7 +228,6 @@ func (s *Service) GetAllData(user_id int, table string, columns ...string) ([]ma
 
 	// Попытка получить данные из keeper
 	data, err = s.keeper.GetAllData(table, columns...)
-
 	if err != nil {
 		// Если данные не удалось получить из keeper, попытка получить данные из sync
 		data, err = s.sync.GetAllData(user_id, table)
@@ -227,6 +243,19 @@ func (s *Service) GetAllData(user_id int, table string, columns ...string) ([]ma
 				if err != nil {
 					return nil, err // Возвращаем ошибку, если не удалось пометить элемент для синхронизации
 				}
+			}
+		}
+	}
+
+	// Расшифровка данных перед возвратом
+	for i, item := range data {
+		for key, value := range item {
+			if key != "id" {
+				decryptedValue, err := s.enc.Decrypt(value)
+				if err != nil {
+					return nil, err
+				}
+				data[i][key] = decryptedValue
 			}
 		}
 	}

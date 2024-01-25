@@ -121,7 +121,6 @@ func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 	line, _ := c.rl.Readline()
 	switch strings.TrimSpace(line) {
 	case "1":
-		fmt.Println("chooseAction1")
 		func1()
 	case "2":
 		func2()
@@ -308,7 +307,12 @@ func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[strin
 	if tableName == "" || id == "" {
 		return
 	}
-	newdata, err := c.service.GetData(c.userID, tableName, id)
+	strid, err := strconv.Atoi(id)
+	if err != nil {
+		fmt.Println("Ошибка при преобразовании userID в целое число:", err)
+		return
+	}
+	newdata, err := c.service.GetData(c.userID, tableName, strid)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
