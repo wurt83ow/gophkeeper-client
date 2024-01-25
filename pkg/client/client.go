@@ -367,37 +367,14 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 
 		// Предложение ввести путь для сохранения
 		c.rl.SetPrompt("Enter the path to save the file: ")
-		savePath, _ := c.rl.Readline()
+		outputPath, _ := c.rl.Readline()
 
 		// Получение пути к файлу из данных
 		fileName := newdata["path"]
-		filePath := filepath.Join(c.opt.FileStoragePath, fileName)
-
-		// Чтение файла
-		// fileData, err := os.ReadFile(filePath)
-		// if err != nil {
-		// 	fmt.Println("Failed to read file:", err)
-		// 	return
-		// }
-
-		// Открытие зашифрованного файла
-		encryptedFile, err := os.Open(filePath)
-		if err != nil {
-			fmt.Println("Failed to open encrypted file:", err)
-			return
-		}
-		defer encryptedFile.Close()
-
-		// Создание файла для записи расшифрованных данных
-		decryptedFile, err := os.Create(savePath)
-		if err != nil {
-			fmt.Println("Failed to create decrypted file:", err)
-			return
-		}
-		defer decryptedFile.Close()
+		inputPath := filepath.Join(c.opt.FileStoragePath, fileName)
 
 		// Расшифровка файла
-		err = c.enc.DecryptFile(encryptedFile, decryptedFile)
+		err = c.enc.DecryptFile(inputPath, outputPath)
 		if err != nil {
 			fmt.Println("Failed to decrypt file:", err)
 			return
@@ -405,21 +382,6 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 
 		fmt.Println("File decrypted and saved successfully!")
 
-		// // Расшифровка файла
-		// decryptedData, err := c.enc.DecryptFile(fileData)
-		// if err != nil {
-		// 	fmt.Println("Failed to decrypt file:", err)
-		// 	return
-		// }
-
-		// // Сохранение файла
-		// err = os.WriteFile(savePath, decryptedData, os.ModePerm)
-		// if err != nil {
-		// 	fmt.Println("Failed to save file:", err)
-		// 	return
-		// }
-
-		// fmt.Println("File saved successfully!")
 	}
 }
 
@@ -502,10 +464,10 @@ func (c *Client) addBinaryData() {
 	c.rl.SetPrompt("Choose a title (meta-information): ")
 	title, _ := c.rl.Readline()
 	c.rl.SetPrompt("Specify the file path: ")
-	filePath, _ := c.rl.Readline()
+	inputPath, _ := c.rl.Readline()
 
 	// Проверяем, существует ли файл
-	info, err := os.Stat(filePath)
+	info, err := os.Stat(inputPath)
 	if os.IsNotExist(err) {
 		fmt.Println("File not found!")
 		return
@@ -517,26 +479,10 @@ func (c *Client) addBinaryData() {
 		return
 	}
 
-	// Открываем файл
-	file, err := os.Open(filePath)
+	// Читаем и шифруем файл по частям. Сохраняем зашифрованные данные в файловой системе
+	encryptedFilePath, hash, err := c.enc.EncryptFile(inputPath, c.opt.FileStoragePath)
 	if err != nil {
-		fmt.Printf("Failed to open file: %s\n", err)
-		return
-	}
-	defer file.Close()
-
-	// Читаем и шифруем файл по частям
-	encryptedData, hash, err := c.enc.EncryptFile(file)
-	if err != nil {
-		fmt.Printf("Failed to encrypt file: %s\n", err)
-		return
-	}
-
-	// Сохраняем зашифрованные данные в файловой системе
-	encryptedFilePath := filepath.Join(c.opt.FileStoragePath, fmt.Sprintf("%x", hash))
-	err = os.WriteFile(encryptedFilePath, encryptedData, 0644)
-	if err != nil {
-		fmt.Printf("Failed to write file: %s\n", err)
+		fmt.Printf("Failed to encrypt or write file: %s\n", err)
 		return
 	}
 
@@ -558,7 +504,7 @@ func (c *Client) addBinaryData() {
 		return
 	}
 
-	fmt.Printf("Title: %s, File: %s\n", title, filePath)
+	fmt.Printf("Title: %s, File: %s\n", title, inputPath)
 	fmt.Println("Data added successfully!")
 }
 

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -102,169 +103,120 @@ func (e *Enc) Encrypt(data string) (string, error) {
 	return base64.URLEncoding.EncodeToString(ciphertext), nil
 }
 
-// func (e *Enc) DecryptData(ciphertext []byte) ([]byte, error) {
-// 	block, err := aes.NewCipher(e.key)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func (e *Enc) DecryptFile(inputPath string, outputPath string) error {
+	inputFile, err := os.Open(inputPath)
+	if err != nil {
+		return err
+	}
+	defer inputFile.Close()
 
-// 	gcm, err := cipher.NewGCM(block)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
 
-// 	nonceSize := gcm.NonceSize()
-// 	if len(ciphertext) < nonceSize {
-// 		return nil, errors.New("ciphertext too short")
-// 	}
-
-// 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
-// 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return plaintext, nil
-// }
-
-// func (e *Enc) DecryptData(ciphertext []byte) ([]byte, error) {
-// 	block, err := aes.NewCipher(e.key)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	gcm, err := cipher.NewGCM(block)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	var plaintext []byte
-// 	nonceSize := gcm.NonceSize()
-
-// 	for len(ciphertext) > 0 {
-// 		if len(ciphertext) < 2*nonceSize {
-// 			return nil, errors.New("ciphertext too short")
-// 		}
-
-// 		nonce, block := ciphertext[:nonceSize], ciphertext[nonceSize:2*nonceSize]
-// 		ciphertext = ciphertext[2*nonceSize:]
-
-// 		blockDecrypted, err := gcm.Open(nil, nonce, block, nil)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		plaintext = append(plaintext, blockDecrypted...)
-// 	}
-
-// 	return plaintext, nil
-// }
-
-func (e *Enc) DecryptData(ciphertext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(e.key)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
+	nonce := make([]byte, 16)
+	if _, err := io.ReadFull(inputFile, nonce); err != nil {
+		return err
 	}
 
-	nonceSize := gcm.NonceSize()
-	if len(ciphertext) < nonceSize {
-		return nil, errors.New("ciphertext too short")
-	}
+	stream := cipher.NewCTR(block, nonce)
 
-	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return plaintext, nil
-}
-
-func (e *Enc) DecryptFile(inputFile *os.File, outputFile *os.File) error {
-	var decryptedData []byte
 	buf := make([]byte, 1024)
 	for {
 		n, err := inputFile.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
+		if err != nil && err != io.EOF {
 			return err
 		}
-
-		data := buf[:n]
-		decryptedPart, err := e.DecryptData(data)
-		if err != nil {
-			return err
+		if n == 0 {
+			break
 		}
 
-		// Добавляем расшифрованную часть в decryptedData
-		decryptedData = append(decryptedData, decryptedPart...)
-	}
+		stream.XORKeyStream(buf[:n], buf[:n])
 
-	_, err := outputFile.Write(decryptedData)
-	if err != nil {
-		return err
+		if _, err := outputFile.Write(buf[:n]); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (e *Enc) EncryptData(data []byte) ([]byte, error) {
-	block, err := aes.NewCipher(e.key)
+func (e *Enc) EncryptFile(inputPath string, outputPath string) (string, []byte, error) {
+	bs := []byte{}
+
+	inputFile, err := os.Open(inputPath)
 	if err != nil {
-		return nil, err
+		return "", bs, err
 	}
+	defer inputFile.Close()
 
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
-	}
-
-	ciphertext := gcm.Seal(nonce, nonce, data, nil)
-	return ciphertext, nil
-}
-
-func (e *Enc) EncryptFile(file *os.File) ([]byte, []byte, error) {
-	var encryptedData []byte
 	hasher := sha256.New()
 	buf := make([]byte, 1024)
 	for {
-		n, err := file.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, nil, err
+		n, err := inputFile.Read(buf)
+		if err != nil && err != io.EOF {
+			return "", bs, err
+		}
+		if n == 0 {
+			break
 		}
 
-		data := buf[:n]
-		encryptedPart, err := e.EncryptData(data)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Добавляем зашифрованную часть в encryptedData
-		encryptedData = append(encryptedData, encryptedPart...)
-
-		// Обновляем хеш данных
-		hasher.Write(encryptedPart)
+		hasher.Write(buf[:n])
 	}
 
-	// Получаем окончательный хеш данных
 	hash := hasher.Sum(nil)
+	encryptedFilePath := filepath.Join(outputPath, fmt.Sprintf("%x", hash))
 
-	return encryptedData, hash, nil
+	outputFile, err := os.Create(encryptedFilePath)
+	if err != nil {
+		return "", bs, err
+	}
+	defer outputFile.Close()
+
+	block, err := aes.NewCipher(e.key)
+	if err != nil {
+		return "", bs, err
+	}
+
+	nonce := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", bs, err
+	}
+
+	// Записываем nonce в начало файла
+	if _, err := outputFile.Write(nonce); err != nil {
+		return "", bs, err
+	}
+
+	stream := cipher.NewCTR(block, nonce)
+
+	// Сбрасываем указатель файла на начало
+	inputFile.Seek(0, 0)
+
+	for {
+		n, err := inputFile.Read(buf)
+		if err != nil && err != io.EOF {
+			return "", bs, err
+		}
+		if n == 0 {
+			break
+		}
+
+		stream.XORKeyStream(buf[:n], buf[:n])
+
+		if _, err := outputFile.Write(buf[:n]); err != nil {
+			return "", bs, err
+		}
+	}
+
+	return encryptedFilePath, hash, nil
 }
 
 func (e *Enc) HashPassword(password string) (string, error) {
