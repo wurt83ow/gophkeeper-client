@@ -1,9 +1,7 @@
 package client
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -290,6 +288,7 @@ func (c *Client) list() {
 		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
 	}
 }
+
 func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[string]string)) {
 	for {
 		data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
@@ -328,26 +327,122 @@ func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[strin
 		}
 	}
 }
+func (c *Client) getBinaryDataAndSave(tableName string) {
 
-func printData(data map[string]string) {
+	data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
+	if len(data) == 0 {
+		fmt.Println("No entries found in the table:", tableName)
+		return
+	}
+
+	for _, entry := range data {
+		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+	}
+
+	c.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
+	id, _ := c.rl.Readline()
+
+	if id == "" {
+		return
+	}
+	strid, err := strconv.Atoi(id)
+	if err != nil {
+		fmt.Println("Ошибка при преобразовании userID в целое число:", err)
+		return
+	}
+	newdata, err := c.service.GetData(c.userID, tableName, strid)
+	if err != nil {
+		fmt.Printf("Failed to get data: %s\n", err)
+	} else {
+		c.printData(newdata)
+		fmt.Println("Data retrieved successfully!")
+
+		// Предложение сохранить файл
+		c.rl.SetPrompt("Do you want to save the file? (yes/no): ")
+		choice, _ := c.rl.Readline()
+
+		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
+			return
+		}
+
+		// Предложение ввести путь для сохранения
+		c.rl.SetPrompt("Enter the path to save the file: ")
+		savePath, _ := c.rl.Readline()
+
+		// Получение пути к файлу из данных
+		fileName := newdata["path"]
+		filePath := filepath.Join(c.opt.FileStoragePath, fileName)
+
+		// Чтение файла
+		// fileData, err := os.ReadFile(filePath)
+		// if err != nil {
+		// 	fmt.Println("Failed to read file:", err)
+		// 	return
+		// }
+
+		// Открытие зашифрованного файла
+		encryptedFile, err := os.Open(filePath)
+		if err != nil {
+			fmt.Println("Failed to open encrypted file:", err)
+			return
+		}
+		defer encryptedFile.Close()
+
+		// Создание файла для записи расшифрованных данных
+		decryptedFile, err := os.Create(savePath)
+		if err != nil {
+			fmt.Println("Failed to create decrypted file:", err)
+			return
+		}
+		defer decryptedFile.Close()
+
+		// Расшифровка файла
+		err = c.enc.DecryptFile(encryptedFile, decryptedFile)
+		if err != nil {
+			fmt.Println("Failed to decrypt file:", err)
+			return
+		}
+
+		fmt.Println("File decrypted and saved successfully!")
+
+		// // Расшифровка файла
+		// decryptedData, err := c.enc.DecryptFile(fileData)
+		// if err != nil {
+		// 	fmt.Println("Failed to decrypt file:", err)
+		// 	return
+		// }
+
+		// // Сохранение файла
+		// err = os.WriteFile(savePath, decryptedData, os.ModePerm)
+		// if err != nil {
+		// 	fmt.Println("Failed to save file:", err)
+		// 	return
+		// }
+
+		// fmt.Println("File saved successfully!")
+	}
+}
+
+func (c *Client) printData(data map[string]string) {
 	for key, value := range data {
 		fmt.Printf("%s: %s\n", key, value)
 	}
 }
+
 func (c *Client) getLoginPassword() {
-	c.getDataAndPrint("UserCredentials", printData)
+	c.getDataAndPrint("UserCredentials", c.printData)
 }
 
 func (c *Client) getTextData() {
-	c.getDataAndPrint("TextData", printData)
+	c.getDataAndPrint("TextData", c.printData)
 }
 
 func (c *Client) getBinaryData() {
-	c.getDataAndPrint("FilesData", printData)
+	c.getBinaryDataAndSave("FilesData")
 }
 
 func (c *Client) getBankCardData() {
-	c.getDataAndPrint("CreditCardData", printData)
+	c.getDataAndPrint("CreditCardData", c.printData)
 }
 
 func (c *Client) addDataRepeatedly(dataType string, dataFunc func() map[string]string, printFunc func(data map[string]string)) {
@@ -431,35 +526,11 @@ func (c *Client) addBinaryData() {
 	defer file.Close()
 
 	// Читаем и шифруем файл по частям
-	var encryptedData []byte
-	hasher := sha256.New()
-	buf := make([]byte, 1024)
-	for {
-		n, err := file.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			fmt.Printf("Failed to read file: %s\n", err)
-			return
-		}
-
-		data := buf[:n]
-		encryptedPart, err := c.enc.EncryptData(data)
-		if err != nil {
-			fmt.Printf("Failed to encrypt file: %s\n", err)
-			return
-		}
-
-		// Добавляем зашифрованную часть в encryptedData
-		encryptedData = append(encryptedData, encryptedPart...)
-
-		// Обновляем хеш данных
-		hasher.Write(encryptedPart)
+	encryptedData, hash, err := c.enc.EncryptFile(file)
+	if err != nil {
+		fmt.Printf("Failed to encrypt file: %s\n", err)
+		return
 	}
-
-	// Получаем окончательный хеш данных
-	hash := hasher.Sum(nil)
 
 	// Сохраняем зашифрованные данные в файловой системе
 	encryptedFilePath := filepath.Join(c.opt.FileStoragePath, fmt.Sprintf("%x", hash))
