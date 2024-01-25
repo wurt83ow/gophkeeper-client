@@ -291,59 +291,63 @@ func (c *Client) list() {
 	}
 }
 func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[string]string)) {
-	data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
-	if len(data) == 0 {
-		fmt.Println("No entries found in the table:", tableName)
-		return
-	}
+	for {
+		data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
+		if len(data) == 0 {
+			fmt.Println("No entries found in the table:", tableName)
+			return
+		}
 
-	for _, entry := range data {
-		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-	}
+		for _, entry := range data {
+			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+		}
 
-	c.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
-	id, _ := c.rl.Readline()
+		c.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
+		id, _ := c.rl.Readline()
 
-	if tableName == "" || id == "" {
-		return
-	}
-	strid, err := strconv.Atoi(id)
-	if err != nil {
-		fmt.Println("Ошибка при преобразовании userID в целое число:", err)
-		return
-	}
-	newdata, err := c.service.GetData(c.userID, tableName, strid)
-	if err != nil {
-		fmt.Printf("Failed to get data: %s\n", err)
-	} else {
-		printFunc(newdata)
-		fmt.Println("Data retrieved successfully!")
+		if tableName == "" || id == "" {
+			return
+		}
+		strid, err := strconv.Atoi(id)
+		if err != nil {
+			fmt.Println("Ошибка при преобразовании userID в целое число:", err)
+			return
+		}
+		newdata, err := c.service.GetData(c.userID, tableName, strid)
+		if err != nil {
+			fmt.Printf("Failed to get data: %s\n", err)
+		} else {
+			printFunc(newdata)
+			fmt.Println("Data retrieved successfully!")
+		}
+
+		c.rl.SetPrompt("Do you want to continue getting data? (yes/no): ")
+		choice, _ := c.rl.Readline()
+		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
+			break
+		}
 	}
 }
 
+func printData(data map[string]string) {
+	for key, value := range data {
+		fmt.Printf("%s: %s\n", key, value)
+	}
+}
 func (c *Client) getLoginPassword() {
-	c.getDataAndPrint("UserCredentials", func(data map[string]string) {
-		fmt.Printf("Login: %s, Password: %s\n", data["login"], data["password"])
-	})
+	c.getDataAndPrint("UserCredentials", printData)
 }
 
 func (c *Client) getTextData() {
-	c.getDataAndPrint("TextData", func(data map[string]string) {
-		fmt.Printf("Title: %s, Text: %s\n", data["meta_info"], data["data"])
-	})
+	c.getDataAndPrint("TextData", printData)
 }
 
 func (c *Client) getBinaryData() {
-	c.getDataAndPrint("FilesData", func(data map[string]string) {
-		fmt.Printf("Title: %s, File: %s\n", data["meta_info"], data["path"])
-	})
+	c.getDataAndPrint("FilesData", printData)
 }
 
 func (c *Client) getBankCardData() {
-	c.getDataAndPrint("CreditCardData", func(data map[string]string) {
-		fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n",
-			data["meta_info"], data["card_number"], data["expiration_date"], data["cvv"])
-	})
+	c.getDataAndPrint("CreditCardData", printData)
 }
 
 func (c *Client) addDataRepeatedly(dataType string, dataFunc func() map[string]string, printFunc func(data map[string]string)) {
