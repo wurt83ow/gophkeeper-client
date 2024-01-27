@@ -163,15 +163,15 @@ func (k *Keeper) AddData(user_id int, table string, data map[string]string) erro
 	return err
 }
 
-func (k *Keeper) UpdateData(user_id int, table string, data map[string]string) error {
+func (k *Keeper) UpdateData(user_id int, id int, table string, data map[string]string) error {
 	keys := make([]string, 0, len(data))
 	values := make([]interface{}, 0, len(data))
 	for key, value := range data {
 		keys = append(keys, key+" = ?")
 		values = append(values, value)
 	}
-	values = append(values, user_id)
-	stmt, err := k.db.Prepare(fmt.Sprintf("UPDATE %s SET %s WHERE user_id = ?", table, strings.Join(keys, ",")))
+	values = append(values, user_id, id)
+	stmt, err := k.db.Prepare(fmt.Sprintf("UPDATE %s SET %s WHERE user_id = ? AND id = ?", table, strings.Join(keys, ",")))
 	if err != nil {
 		return err
 	}

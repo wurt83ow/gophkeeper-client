@@ -149,7 +149,7 @@ func (c *Client) selectData() (string, string) {
 		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
 	}
 
-	c.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
+	c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
 	id, _ := c.rl.Readline()
 
 	return tableName, id
@@ -301,18 +301,18 @@ func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[strin
 			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
 		}
 
-		c.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
-		id, _ := c.rl.Readline()
+		c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
+		strid, _ := c.rl.Readline()
 
-		if tableName == "" || id == "" {
+		if tableName == "" || strid == "" {
 			return
 		}
-		strid, err := strconv.Atoi(id)
+		id, err := strconv.Atoi(strid)
 		if err != nil {
-			fmt.Println("Ошибка при преобразовании userID в целое число:", err)
+			fmt.Println("Ошибка при преобразовании ID в целое число:", err)
 			return
 		}
-		newdata, err := c.service.GetData(c.userID, tableName, strid)
+		newdata, err := c.service.GetData(c.userID, tableName, id)
 		if err != nil {
 			fmt.Printf("Failed to get data: %s\n", err)
 		} else {
@@ -339,18 +339,18 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
 	}
 
-	c.rl.SetPrompt("Enter the ID of the binary data you want to get: ")
-	id, _ := c.rl.Readline()
+	c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
+	strid, _ := c.rl.Readline()
 
-	if id == "" {
+	if strid == "" {
 		return
 	}
-	strid, err := strconv.Atoi(id)
+	id, err := strconv.Atoi(strid)
 	if err != nil {
-		fmt.Println("Ошибка при преобразовании userID в целое число:", err)
+		fmt.Println("Ошибка при преобразовании ID в целое число:", err)
 		return
 	}
-	newdata, err := c.service.GetData(c.userID, tableName, strid)
+	newdata, err := c.service.GetData(c.userID, tableName, id)
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -556,56 +556,140 @@ func (c *Client) addBankCardData() {
 }
 
 func (c *Client) editLoginPassword() {
-	fmt.Println("editLoginPassword")
-	tableName, id := c.selectData()
-	if tableName == "" || id == "" {
-		return
-	}
-	c.rl.SetPrompt("Choose a new title (meta-information): ")
-	title, _ := c.rl.Readline()
-	c.rl.SetPrompt("Enter new login: ")
-	login, _ := c.rl.Readline()
-	c.rl.SetPrompt("Enter new password: ")
-	c.rl.Config.EnableMask = true
-	password, _ := c.rl.Readline()
-	c.rl.Config.EnableMask = false
-	newData := map[string]string{
-		"login":     login,
-		"password":  password,
-		"meta_info": title,
-	}
-	err := c.service.UpdateData(c.userID, id, newData)
-	if err != nil {
-		fmt.Printf("Failed to edit data: %s\n", err)
-	} else {
-		fmt.Printf("Login: %s, Password: %s\n", login, password)
-		fmt.Println("Data edited successfully!")
+	for {
+		tableName := "UserCredentials"
+
+		data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
+		if len(data) == 0 {
+			fmt.Println("No entries found in the table:", tableName)
+			return
+		}
+
+		for _, entry := range data {
+			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+		}
+
+		c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
+		strid, _ := c.rl.Readline()
+
+		if strid == "" {
+			return
+		}
+		id, err := strconv.Atoi(strid)
+
+		if err != nil {
+			fmt.Println("Ошибка при преобразовании ID в целое число:", err)
+			return
+		}
+		// Получение существующих данных
+		oldData, err := c.service.GetData(c.userID, tableName, id)
+
+		if err != nil {
+			fmt.Printf("Failed to get data: %s\n", err)
+			return
+		}
+		c.rl.SetPrompt(fmt.Sprintf("Choose a new title (meta-information) [%s]: ", oldData["meta_info"]))
+		title, _ := c.rl.Readline()
+		if title == "" {
+			title = oldData["meta_info"]
+		}
+		c.rl.SetPrompt(fmt.Sprintf("Enter new login [%s]: ", oldData["login"]))
+		login, _ := c.rl.Readline()
+		if login == "" {
+			login = oldData["login"]
+		}
+		c.rl.SetPrompt("Enter new password: ")
+		c.rl.Config.EnableMask = true
+		password, _ := c.rl.Readline()
+		c.rl.Config.EnableMask = false
+		if password == "" {
+			password = oldData["password"]
+		}
+		newData := map[string]string{
+			"login":     login,
+			"password":  password,
+			"meta_info": title,
+		}
+		err = c.service.UpdateData(c.userID, id, tableName, newData)
+		if err != nil {
+			fmt.Printf("Failed to edit data: %s\n", err)
+		} else {
+			fmt.Printf("Login: %s, Password: %s\n", login, password)
+			fmt.Println("Data edited successfully!")
+		}
+		c.rl.SetPrompt("Do you want to continue editing data? (yes/no): ")
+		choice, _ := c.rl.Readline()
+		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
+			break
+		}
 	}
 }
+
 func (c *Client) editTextData() {
-	tableName, id := c.selectData()
-	if tableName == "" || id == "" {
-		return
-	}
-	c.rl.SetPrompt("Choose a new title (meta-information): ")
-	title, _ := c.rl.Readline()
-	c.rl.SetPrompt("Enter new text data: ")
-	text, _ := c.rl.Readline()
-	newData := map[string]string{
-		"data":      text,
-		"meta_info": title,
-	}
-	err := c.service.UpdateData(c.userID, id, newData)
-	if err != nil {
-		fmt.Printf("Failed to edit data: %s\n", err)
-	} else {
-		fmt.Printf("Title: %s, Text: %s\n", title, text)
-		fmt.Println("Data edited successfully!")
+	for {
+		tableName := "TextData"
+
+		data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
+		if len(data) == 0 {
+			fmt.Println("No entries found in the table:", tableName)
+			return
+		}
+
+		for _, entry := range data {
+			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+		}
+
+		c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
+		strid, _ := c.rl.Readline()
+
+		if strid == "" {
+			return
+		}
+		id, err := strconv.Atoi(strid)
+
+		if err != nil {
+			fmt.Println("Ошибка при преобразовании ID в целое число:", err)
+			return
+		}
+		// Получение существующих данных
+		oldData, err := c.service.GetData(c.userID, tableName, id)
+
+		if err != nil {
+			fmt.Printf("Failed to get data: %s\n", err)
+			return
+		}
+		c.rl.SetPrompt(fmt.Sprintf("Choose a new title (meta-information) [%s]: ", oldData["meta_info"]))
+		title, _ := c.rl.Readline()
+		if title == "" {
+			title = oldData["meta_info"]
+		}
+		c.rl.SetPrompt(fmt.Sprintf("Enter new text data [%s]: ", oldData["data"]))
+		text, _ := c.rl.Readline()
+		if text == "" {
+			text = oldData["data"]
+		}
+		newData := map[string]string{
+			"data":      text,
+			"meta_info": title,
+		}
+		err = c.service.UpdateData(c.userID, id, tableName, newData)
+		if err != nil {
+			fmt.Printf("Failed to edit data: %s\n", err)
+		} else {
+			fmt.Printf("Title: %s, Text: %s\n", title, text)
+			fmt.Println("Data edited successfully!")
+		}
+		c.rl.SetPrompt("Do you want to continue editing data? (yes/no): ")
+		choice, _ := c.rl.Readline()
+		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
+			break
+		}
 	}
 }
+
 func (c *Client) editBinaryData() {
-	tableName, id := c.selectData()
-	if tableName == "" || id == "" {
+	tableName, strid := c.selectData()
+	if tableName == "" || strid == "" {
 		return
 	}
 	c.rl.SetPrompt("Choose a new title (meta-information): ")
@@ -616,7 +700,12 @@ func (c *Client) editBinaryData() {
 		"path":      filePath,
 		"meta_info": title,
 	}
-	err := c.service.UpdateData(c.userID, id, newData)
+	id, err := strconv.Atoi(strid)
+	if err != nil {
+		fmt.Println("Ошибка при преобразовании ID в целое число:", err)
+		return
+	}
+	err = c.service.UpdateData(c.userID, id, tableName, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {
@@ -625,8 +714,8 @@ func (c *Client) editBinaryData() {
 	}
 }
 func (c *Client) editBankCardData() {
-	tableName, id := c.selectData()
-	if tableName == "" || id == "" {
+	tableName, strid := c.selectData()
+	if tableName == "" || strid == "" {
 		return
 	}
 	c.rl.SetPrompt("Choose a new title (meta-information): ")
@@ -643,7 +732,13 @@ func (c *Client) editBankCardData() {
 		"cvv":             cvv,
 		"meta_info":       title,
 	}
-	err := c.service.UpdateData(c.userID, id, newData)
+
+	id, err := strconv.Atoi(strid)
+	if err != nil {
+		fmt.Println("Ошибка при преобразовании ID в целое число:", err)
+		return
+	}
+	err = c.service.UpdateData(c.userID, id, tableName, newData)
 	if err != nil {
 		fmt.Printf("Failed to edit data: %s\n", err)
 	} else {

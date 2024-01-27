@@ -187,7 +187,7 @@ func (s *Service) AddData(user_id int, table string, data map[string]string) err
 	return err
 }
 
-func (s *Service) UpdateData(user_id int, table string, data map[string]string) error {
+func (s *Service) UpdateData(user_id int, id int, table string, data map[string]string) error {
 	// Шифрование каждого значения в данных перед их обновлением
 	encryptedData := make(map[string]string)
 	for key, value := range data {
@@ -198,11 +198,11 @@ func (s *Service) UpdateData(user_id int, table string, data map[string]string) 
 		encryptedData[key] = encryptedValue
 	}
 
-	err := s.keeper.UpdateData(user_id, table, encryptedData)
+	err := s.keeper.UpdateData(user_id, id, table, encryptedData)
 	if err != nil {
 		return err
 	}
-	err = s.sync.UpdateData(user_id, table, encryptedData)
+	err = s.sync.UpdateData(user_id, id, table, encryptedData)
 	if err == gksync.ErrNetworkUnavailable {
 		err = s.keeper.MarkForSync(user_id, table, encryptedData)
 	}

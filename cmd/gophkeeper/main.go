@@ -10,9 +10,7 @@ import (
 )
 
 func main() {
-
 	option := config.NewConfig()
-
 	keeper := bdkeeper.NewKeeper()
 	sync := gksync.NewSync(option.ServerURL, option.SyncWithServer)
 	enc := encription.NewEnc("password")
