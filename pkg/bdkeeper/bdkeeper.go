@@ -179,32 +179,20 @@ func (k *Keeper) UpdateData(user_id int, id int, table string, data map[string]s
 	return err
 }
 
-func (k *Keeper) DeleteData(user_id int, table string, id string, meta_info string) error {
+func (k *Keeper) DeleteData(user_id int, table string, id string) error {
 	// Check user_id and table
 	if user_id == 0 || table == "" {
 		return errors.New("user_id and table must be specified")
 	}
 
-	// Check id and meta_info
-	if id == "" && meta_info == "" {
-		return errors.New("id or meta_info must be specified")
+	// Check id
+	if id == "" {
+		return errors.New("id must be specified")
 	}
 
 	// Prepare the query
-	var query string
-	args := []interface{}{user_id}
-	if id != "" {
-		query = "id = ?"
-		args = append(args, id)
-	}
-	if meta_info != "" {
-		if id != "" {
-			query += " AND "
-		}
-		query += "meta_info LIKE ?"
-		args = append(args, "%"+meta_info+"%")
-	}
-	query = fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE user_id = ? AND (%s)", table, query)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE user_id = ? AND id = ?", table)
+	args := []interface{}{user_id, id}
 
 	// Execute the query
 	row := k.db.QueryRow(query, args...)
@@ -226,26 +214,6 @@ func (k *Keeper) DeleteData(user_id int, table string, id string, meta_info stri
 	_, err = k.db.Exec(query, args...)
 	return err
 }
-
-// func (k *Keeper) GetData(user_id int, table string, columns ...string) (map[string]string, error) {
-// 	fmt.Println(user_id, table, columns)
-// 	row := k.db.QueryRow(fmt.Sprintf("SELECT %s FROM %s WHERE user_id = ?", strings.Join(columns, ","), table), user_id)
-// 	values := make([]interface{}, len(columns))
-// 	for i := range values {
-// 		var value string
-// 		values[i] = &value
-// 	}
-// 	err := row.Scan(values...)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	data := make(map[string]string)
-// 	for i, column := range columns {
-// 		fmt.Println(columns)
-// 		data[column] = *(values[i].(*string))
-// 	}
-// 	return data, nil
-// }
 
 func (k *Keeper) GetData(user_id int, table string, id int) (map[string]string, error) {
 	// Получаем все колонки таблицы

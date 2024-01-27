@@ -209,8 +209,8 @@ func (s *Service) UpdateData(user_id int, id int, table string, data map[string]
 	return err
 }
 
-func (s *Service) DeleteData(user_id int, table string, id string, meta_info string) error {
-	err := s.keeper.DeleteData(user_id, table, id, meta_info)
+func (s *Service) DeleteData(user_id int, table string, id string) error {
+	err := s.keeper.DeleteData(user_id, table, id)
 	if err != nil {
 		return err
 	}

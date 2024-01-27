@@ -42,15 +42,15 @@ func (c *Client) Start() {
 	}
 
 	commands := map[string]func(){
+		"register": c.register,
+		"login":    c.login,
+		"logout":   c.Logout,
+
 		"add":  c.addData,
 		"edit": c.editData,
 		"ls":   c.list,
 		"rm":   c.DeleteData,
-
-		"register": c.register,
-		"login":    c.login,
-		"logout":   c.Logout,
-		"get":      c.getData,
+		"get":  c.getData,
 	}
 
 	if _, err := os.Stat("session.dat"); err == nil {
@@ -145,29 +145,6 @@ func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 	}
 }
 
-func (c *Client) selectData() (string, string) {
-	// printMenu()
-	line, _ := c.rl.Readline()
-	tableName, valid := getTableNameByChoice(line)
-	if !valid {
-		fmt.Println("Invalid choice")
-		return "", ""
-	}
-
-	data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
-	if len(data) == 0 {
-		fmt.Println("No entries found in the table:", tableName)
-		return "", ""
-	}
-	for _, entry := range data {
-		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-	}
-
-	c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
-	id, _ := c.rl.Readline()
-
-	return tableName, id
-}
 func (c *Client) getData() {
 	fmt.Println("Get data:")
 	if c.userID == 0 {
@@ -187,14 +164,13 @@ func printMenu() {
 func getTableNameByChoice(choice string) (string, bool) {
 	switch choice {
 	case "1":
-		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
 		return "UserCredentials", true
 	case "2":
-		return "CreditCardData", true
-	case "3":
 		return "TextData", true
-	case "4":
+	case "3":
 		return "FilesData", true
+	case "4":
+		return "CreditCardData", true
 	default:
 		return "", false
 	}
@@ -705,204 +681,12 @@ func (c *Client) editBankCardData() {
 	})
 }
 
-// func (c *Client) editLoginPassword() {
-// 	for {
-// 		tableName := "UserCredentials"
-
-// 		data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
-// 		if len(data) == 0 {
-// 			fmt.Println("No entries found in the table:", tableName)
-// 			return
-// 		}
-
-// 		for _, entry := range data {
-// 			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-// 		}
-
-// 		c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
-// 		strid, _ := c.rl.Readline()
-
-// 		if strid == "" {
-// 			return
-// 		}
-// 		id, err := strconv.Atoi(strid)
-
-// 		if err != nil {
-// 			fmt.Println("Ошибка при преобразовании ID в целое число:", err)
-// 			return
-// 		}
-// 		// Получение существующих данных
-// 		oldData, err := c.service.GetData(c.userID, tableName, id)
-
-// 		if err != nil {
-// 			fmt.Printf("Failed to get data: %s\n", err)
-// 			return
-// 		}
-// 		c.rl.SetPrompt(fmt.Sprintf("Choose a new title (meta-information) [%s]: ", oldData["meta_info"]))
-// 		title, _ := c.rl.Readline()
-// 		if title == "" {
-// 			title = oldData["meta_info"]
-// 		}
-// 		c.rl.SetPrompt(fmt.Sprintf("Enter new login [%s]: ", oldData["login"]))
-// 		login, _ := c.rl.Readline()
-// 		if login == "" {
-// 			login = oldData["login"]
-// 		}
-// 		c.rl.SetPrompt("Enter new password: ")
-// 		c.rl.Config.EnableMask = true
-// 		password, _ := c.rl.Readline()
-// 		c.rl.Config.EnableMask = false
-// 		if password == "" {
-// 			password = oldData["password"]
-// 		}
-// 		newData := map[string]string{
-// 			"login":     login,
-// 			"password":  password,
-// 			"meta_info": title,
-// 		}
-// 		err = c.service.UpdateData(c.userID, id, tableName, newData)
-// 		if err != nil {
-// 			fmt.Printf("Failed to edit data: %s\n", err)
-// 		} else {
-// 			fmt.Printf("Login: %s, Password: %s\n", login, password)
-// 			fmt.Println("Data edited successfully!")
-// 		}
-// 		c.rl.SetPrompt("Do you want to continue editing data? (yes/no): ")
-// 		choice, _ := c.rl.Readline()
-// 		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
-// 			break
-// 		}
-// 	}
-// }
-
-// func (c *Client) editTextData() {
-// 	for {
-// 		tableName := "TextData"
-
-// 		data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
-// 		if len(data) == 0 {
-// 			fmt.Println("No entries found in the table:", tableName)
-// 			return
-// 		}
-
-// 		for _, entry := range data {
-// 			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-// 		}
-
-// 		c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
-// 		strid, _ := c.rl.Readline()
-
-// 		if strid == "" {
-// 			return
-// 		}
-// 		id, err := strconv.Atoi(strid)
-
-// 		if err != nil {
-// 			fmt.Println("Ошибка при преобразовании ID в целое число:", err)
-// 			return
-// 		}
-// 		// Получение существующих данных
-// 		oldData, err := c.service.GetData(c.userID, tableName, id)
-
-// 		if err != nil {
-// 			fmt.Printf("Failed to get data: %s\n", err)
-// 			return
-// 		}
-// 		c.rl.SetPrompt(fmt.Sprintf("Choose a new title (meta-information) [%s]: ", oldData["meta_info"]))
-// 		title, _ := c.rl.Readline()
-// 		if title == "" {
-// 			title = oldData["meta_info"]
-// 		}
-// 		c.rl.SetPrompt(fmt.Sprintf("Enter new text data [%s]: ", oldData["data"]))
-// 		text, _ := c.rl.Readline()
-// 		if text == "" {
-// 			text = oldData["data"]
-// 		}
-// 		newData := map[string]string{
-// 			"data":      text,
-// 			"meta_info": title,
-// 		}
-// 		err = c.service.UpdateData(c.userID, id, tableName, newData)
-// 		if err != nil {
-// 			fmt.Printf("Failed to edit data: %s\n", err)
-// 		} else {
-// 			fmt.Printf("Title: %s, Text: %s\n", title, text)
-// 			fmt.Println("Data edited successfully!")
-// 		}
-// 		c.rl.SetPrompt("Do you want to continue editing data? (yes/no): ")
-// 		choice, _ := c.rl.Readline()
-// 		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
-// 			break
-// 		}
-// 	}
-// }
-
-// func (c *Client) editBinaryData() {
-// 	tableName, strid := c.selectData()
-// 	if tableName == "" || strid == "" {
-// 		return
-// 	}
-// 	c.rl.SetPrompt("Choose a new title (meta-information): ")
-// 	title, _ := c.rl.Readline()
-// 	c.rl.SetPrompt("Specify the new file path: ")
-// 	filePath, _ := c.rl.Readline()
-// 	newData := map[string]string{
-// 		"path":      filePath,
-// 		"meta_info": title,
-// 	}
-// 	id, err := strconv.Atoi(strid)
-// 	if err != nil {
-// 		fmt.Println("Ошибка при преобразовании ID в целое число:", err)
-// 		return
-// 	}
-// 	err = c.service.UpdateData(c.userID, id, tableName, newData)
-// 	if err != nil {
-// 		fmt.Printf("Failed to edit data: %s\n", err)
-// 	} else {
-// 		fmt.Printf("Title: %s, File: %s\n", title, filePath)
-// 		fmt.Println("Data edited successfully!")
-// 	}
-// }
-// func (c *Client) editBankCardData() {
-// 	tableName, strid := c.selectData()
-// 	if tableName == "" || strid == "" {
-// 		return
-// 	}
-// 	c.rl.SetPrompt("Choose a new title (meta-information): ")
-// 	title, _ := c.rl.Readline()
-// 	c.rl.SetPrompt("Enter new card number: ")
-// 	cardNumber, _ := c.rl.Readline()
-// 	c.rl.SetPrompt("Enter new expiry date (MM/YY): ")
-// 	expiryDate, _ := c.rl.Readline()
-// 	c.rl.SetPrompt("Enter new CVV: ")
-// 	cvv, _ := c.rl.Readline()
-// 	newData := map[string]string{
-// 		"card_number":     cardNumber,
-// 		"expiration_date": expiryDate,
-// 		"cvv":             cvv,
-// 		"meta_info":       title,
-// 	}
-
-//		id, err := strconv.Atoi(strid)
-//		if err != nil {
-//			fmt.Println("Ошибка при преобразовании ID в целое число:", err)
-//			return
-//		}
-//		err = c.service.UpdateData(c.userID, id, tableName, newData)
-//		if err != nil {
-//			fmt.Printf("Failed to edit data: %s\n", err)
-//		} else {
-//			fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s, CVV: %s\n", title, cardNumber, expiryDate, cvv)
-//			fmt.Println("Data edited successfully!")
-//		}
-//	}
 func (c *Client) DeleteData() {
 	if c.userID == 0 {
 		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
 		return
 	}
 	printMenu()
-
 	line, _ := c.rl.Readline()
 	tableName, valid := getTableNameByChoice(strings.TrimSpace(line))
 	if !valid {
@@ -910,57 +694,72 @@ func (c *Client) DeleteData() {
 		return
 	}
 
-	data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
-	if len(data) == 0 {
-		fmt.Println("No entries found in the table:", tableName)
-		return
-	}
-	for _, entry := range data {
-		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-	}
+	for {
 
-	fmt.Println("Enter id or meta_info to delete:")
-	line, _ = c.rl.Readline()
-	var entriesToDelete []map[string]string
-	for _, entry := range data {
-		if entry["id"] == line || strings.Contains(entry["meta_info"], line) {
-			entriesToDelete = append(entriesToDelete, entry)
+		data, _ := c.service.GetAllData(c.userID, tableName, "id", "meta_info")
+		if len(data) == 0 {
+			fmt.Println("No entries found in the table:", tableName)
+			return
 		}
-	}
+		for _, entry := range data {
+			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
+		}
 
-	if len(entriesToDelete) > 1 {
-		fmt.Println("Multiple entries found. Please enter the id of the entry you want to delete.")
+		fmt.Println("Enter id or meta_info to delete:")
 		line, _ = c.rl.Readline()
-		for _, entry := range entriesToDelete {
-			if entry["id"] == line {
-				fmt.Println("Are you sure you want to delete this entry? (yes/no)")
-				line, _ = c.rl.Readline()
-				if strings.ToLower(line) == "yes" {
+		var entriesToDelete []map[string]string
+		for _, entry := range data {
+			if entry["id"] == line || strings.Contains(entry["meta_info"], line) {
+				entriesToDelete = append(entriesToDelete, entry)
+			}
+		}
 
-					err := c.service.DeleteData(c.userID, tableName, entry["id"], entry["meta_info"])
-					if err != nil {
-						fmt.Printf("Failed to delete data: %s\n", err)
-						return
+		if len(entriesToDelete) > 1 {
+			fmt.Println("Multiple entries found:")
+			for _, entry := range entriesToDelete {
+				fmt.Printf("ID: %s, Meta Info: %s\n", entry["id"], entry["meta_info"])
+			}
+			fmt.Println("Please enter the id of the entry you want to delete.")
+			line, _ = c.rl.Readline()
+			for _, entry := range entriesToDelete {
+				if entry["id"] == line {
+					fmt.Println("Are you sure you want to delete this entry? (yes/no)")
+					line, _ = c.rl.Readline()
+					if strings.ToLower(line) == "yes" {
+						err := c.service.DeleteData(c.userID, tableName, entry["id"])
+						if err != nil {
+							fmt.Printf("Failed to delete data: %s\n", err)
+							return
+						}
+						fmt.Println("Entry deleted.")
 					}
-					fmt.Println("Entry deleted.")
+					// Переходим к метке
+					goto Loop
 				}
-				return
 			}
-		}
-		fmt.Println("No entry found with the given id.")
-	} else if len(entriesToDelete) == 1 {
-		fmt.Println("Are you sure you want to delete this entry? (yes/no)")
-		line, _ = c.rl.Readline()
-		if strings.ToLower(line) == "yes" {
-			err := c.service.DeleteData(c.userID, tableName, entriesToDelete[0]["id"], entriesToDelete[0]["meta_info"])
-			if err != nil {
-				fmt.Printf("Failed to delete data: %s\n", err)
-				return
-			}
+			fmt.Println("No entry found with the given id.")
+		} else if len(entriesToDelete) == 1 {
+			fmt.Println("Are you sure you want to delete this entry? (yes/no)")
+			line, _ = c.rl.Readline()
+			if strings.ToLower(line) == "yes" {
+				err := c.service.DeleteData(c.userID, tableName, entriesToDelete[0]["id"])
+				if err != nil {
+					fmt.Printf("Failed to delete data: %s\n", err)
+					return
+				}
 
-			fmt.Println("Entry deleted.")
+				fmt.Println("Entry deleted.")
+			}
+		} else {
+			fmt.Println("No entry found with the given id or meta_info.")
 		}
-	} else {
-		fmt.Println("No entry found with the given id or meta_info.")
+
+		// Метка для перехода
+	Loop:
+		fmt.Println("Do you want to continue deleting data? (yes/no)")
+		line, _ = c.rl.Readline()
+		if strings.ToLower(line) != "yes" && strings.ToLower(line) != "y" {
+			break
+		}
 	}
 }
