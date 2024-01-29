@@ -2,17 +2,21 @@ package bdkeeper
 
 import (
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pressly/goose"
 	"golang.org/x/crypto/bcrypt"
 )
+
+//go:embed migrations/*.sql
+var embeddedMigrations embed.FS
 
 type Keeper struct {
 	db *sql.DB
@@ -23,27 +27,90 @@ func NewKeeper() *Keeper {
 	if err != nil {
 		panic(err)
 	}
-	if err := goose.SetDialect("sqlite3"); err != nil {
+
+	k := &Keeper{
+		db: db,
+	}
+
+	// Create the migrations table if it doesn't exist
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY)")
+	if err != nil {
 		panic(err)
 	}
 
-	// Save old output
-	old := log.Writer()
-
-	// Redirect output to ioutil.Discard
-	log.SetOutput(io.Discard)
-	err = goose.Up(db, "migrations")
-	// Restore the old output
-
-	log.SetOutput(old)
-
+	files, err := fs.ReadDir(embeddedMigrations, "migrations")
 	if err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		panic(err)
 	}
-	return &Keeper{
-		db: db,
+
+	for _, file := range files {
+		if !file.IsDir() {
+			// Check if the migration has already been applied
+			var name string
+			err = db.QueryRow("SELECT name FROM migrations WHERE name = ?", file.Name()).Scan(&name)
+			if err == sql.ErrNoRows {
+				// The migration has not been applied yet
+				f, err := embeddedMigrations.Open("migrations/" + file.Name())
+				if err != nil {
+					panic(err)
+				}
+				defer f.Close()
+
+				bytes, err := io.ReadAll(f)
+				if err != nil {
+					panic(err)
+				}
+
+				upAndDown := strings.Split(string(bytes), "-- +goose Down")
+				upStatements := strings.Split(upAndDown[0], ";")
+
+				// Run the "up" statements.
+				for _, stmt := range upStatements {
+					if _, err := db.Exec(stmt); err != nil {
+						log.Fatalf("Failed to execute migration %s: %v", file.Name(), err)
+					}
+				}
+
+				// Record the migration as having been applied
+				_, err = db.Exec("INSERT INTO migrations (name) VALUES (?)", file.Name())
+				if err != nil {
+					panic(err)
+				}
+			} else if err != nil {
+				// An error occurred checking if the migration has been applied
+				panic(err)
+			}
+		}
 	}
+
+	return k
 }
+
+// func NewKeeper() *Keeper {
+// 	db, err := sql.Open("sqlite3", "./data.db")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	if err := goose.SetDialect("sqlite3"); err != nil {
+// 		panic(err)
+// 	}
+
+// 	// Save old output
+// 	old := log.Writer()
+
+// 	// Redirect output to ioutil.Discard
+// 	log.SetOutput(io.Discard)
+// 	err = goose.Up(db, "migrations")
+// 	// Restore the old output
+// 	log.SetOutput(old)
+
+// 	if err != nil {
+// 		log.Fatalf("Failed to run migrations: %v", err)
+// 	}
+// 	return &Keeper{
+// 		db: db,
+// 	}
+// }
 
 func (k *Keeper) UserExists(username string) (bool, error) {
 	// Запрос для проверки наличия пользователя в базе данных
