@@ -1,6 +1,7 @@
 package bdkeeper
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"encoding/json"
@@ -86,38 +87,12 @@ func NewKeeper() *Keeper {
 	return k
 }
 
-// func NewKeeper() *Keeper {
-// 	db, err := sql.Open("sqlite3", "./data.db")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	if err := goose.SetDialect("sqlite3"); err != nil {
-// 		panic(err)
-// 	}
-
-// 	// Save old output
-// 	old := log.Writer()
-
-// 	// Redirect output to ioutil.Discard
-// 	log.SetOutput(io.Discard)
-// 	err = goose.Up(db, "migrations")
-// 	// Restore the old output
-// 	log.SetOutput(old)
-
-// 	if err != nil {
-// 		log.Fatalf("Failed to run migrations: %v", err)
-// 	}
-// 	return &Keeper{
-// 		db: db,
-// 	}
-// }
-
-func (k *Keeper) UserExists(username string) (bool, error) {
+func (k *Keeper) UserExists(ctx context.Context, username string) (bool, error) {
 	// Запрос для проверки наличия пользователя в базе данных
 	query := `SELECT COUNT(*) FROM Users WHERE username = ?;`
 
 	// Выполнение запроса
-	row := k.db.QueryRow(query, username)
+	row := k.db.QueryRowContext(ctx, query, username)
 
 	// Получение результата
 	var count int
@@ -130,21 +105,21 @@ func (k *Keeper) UserExists(username string) (bool, error) {
 	return count > 0, nil
 }
 
-func (k *Keeper) AddUser(username string, hashedPassword string) error {
+func (k *Keeper) AddUser(ctx context.Context, username string, hashedPassword string) error {
 	// Запрос для добавления нового пользователя в базу данных
 	query := `INSERT INTO Users (username, password) VALUES (?, ?);`
 
 	// Выполнение запроса
-	_, err := k.db.Exec(query, username, hashedPassword)
+	_, err := k.db.ExecContext(ctx, query, username, hashedPassword)
 	return err
 }
 
-func (k *Keeper) IsEmpty() (bool, error) {
+func (k *Keeper) IsEmpty(ctx context.Context) (bool, error) {
 	// Запрос для получения количества записей во всех таблицах
 	query := `SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`
 
 	// Выполнение запроса
-	row := k.db.QueryRow(query)
+	row := k.db.QueryRowContext(ctx, query)
 
 	// Получение результата
 	var count int
@@ -157,7 +132,7 @@ func (k *Keeper) IsEmpty() (bool, error) {
 	return count == 0, nil
 }
 
-func (k *Keeper) MarkForSync(user_id int, table string, data map[string]string) error {
+func (k *Keeper) MarkForSync(ctx context.Context, user_id int, table string, data map[string]string) error {
 	// Преобразовать данные в JSON
 	dataJson, err := json.Marshal(data)
 	if err != nil {
@@ -165,16 +140,16 @@ func (k *Keeper) MarkForSync(user_id int, table string, data map[string]string) 
 	}
 
 	// Добавить запись в таблицу SyncQueue
-	_, err = k.db.Exec("INSERT INTO SyncQueue (user_id, table_name, data) VALUES (?, ?, ?)", user_id, table, dataJson)
+	_, err = k.db.ExecContext(ctx, "INSERT INTO SyncQueue (user_id, table_name, data) VALUES (?, ?, ?)", user_id, table, dataJson)
 	return err
 }
 
-func (k *Keeper) GetPassword(username string) (string, error) {
+func (k *Keeper) GetPassword(ctx context.Context, username string) (string, error) {
 	// Запрос для получения хешированного пароля пользователя из базы данных
 	query := `SELECT password FROM Users WHERE username = ?;`
 
 	// Выполнение запроса
-	row := k.db.QueryRow(query, username)
+	row := k.db.QueryRowContext(ctx, query, username)
 
 	// Получение результата
 	var password string
@@ -193,12 +168,12 @@ func (k *Keeper) CompareHashAndPassword(hashedPassword, password string) bool {
 	return err == nil
 }
 
-func (k *Keeper) GetUserID(username string) (int, error) {
+func (k *Keeper) GetUserID(ctx context.Context, username string) (int, error) {
 	// Запрос для получения идентификатора пользователя из базы данных
 	query := `SELECT id FROM Users WHERE username = ?;`
 
 	// Выполнение запроса
-	row := k.db.QueryRow(query, username)
+	row := k.db.QueryRowContext(ctx, query, username)
 
 	// Получение результата
 	var id int
@@ -210,7 +185,8 @@ func (k *Keeper) GetUserID(username string) (int, error) {
 	// Возвращаем идентификатор пользователя
 	return id, nil
 }
-func (k *Keeper) AddData(user_id int, table string, data map[string]string) error {
+
+func (k *Keeper) AddData(ctx context.Context, user_id int, table string, data map[string]string) error {
 	keys := make([]string, 0, len(data)+1)        // +1 для user_id
 	values := make([]interface{}, 0, len(data)+1) // +1 для user_id
 
@@ -226,11 +202,11 @@ func (k *Keeper) AddData(user_id int, table string, data map[string]string) erro
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(values...)
+	_, err = stmt.ExecContext(ctx, values...)
 	return err
 }
 
-func (k *Keeper) UpdateData(user_id int, id int, table string, data map[string]string) error {
+func (k *Keeper) UpdateData(ctx context.Context, user_id int, id int, table string, data map[string]string) error {
 	keys := make([]string, 0, len(data))
 	values := make([]interface{}, 0, len(data))
 	for key, value := range data {
@@ -242,11 +218,11 @@ func (k *Keeper) UpdateData(user_id int, id int, table string, data map[string]s
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(values...)
+	_, err = stmt.ExecContext(ctx, values...)
 	return err
 }
 
-func (k *Keeper) DeleteData(user_id int, table string, id string) error {
+func (k *Keeper) DeleteData(ctx context.Context, user_id int, table string, id string) error {
 	// Check user_id and table
 	if user_id == 0 || table == "" {
 		return errors.New("user_id and table must be specified")
@@ -262,7 +238,7 @@ func (k *Keeper) DeleteData(user_id int, table string, id string) error {
 	args := []interface{}{user_id, id}
 
 	// Execute the query
-	row := k.db.QueryRow(query, args...)
+	row := k.db.QueryRowContext(ctx, query, args...)
 	var count int
 	err := row.Scan(&count)
 	if err != nil {
@@ -278,13 +254,13 @@ func (k *Keeper) DeleteData(user_id int, table string, id string) error {
 
 	// Delete the record
 	query = strings.Replace(query, "SELECT COUNT(*)", "DELETE", 1)
-	_, err = k.db.Exec(query, args...)
+	_, err = k.db.ExecContext(ctx, query, args...)
 	return err
 }
 
-func (k *Keeper) GetData(user_id int, table string, id int) (map[string]string, error) {
+func (k *Keeper) GetData(ctx context.Context, user_id int, table string, id int) (map[string]string, error) {
 	// Получаем все колонки таблицы
-	columns, err := k.db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	columns, err := k.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get columns: %w", err)
 	}
@@ -309,7 +285,7 @@ func (k *Keeper) GetData(user_id int, table string, id int) (map[string]string, 
 		}
 	}
 
-	row := k.db.QueryRow(fmt.Sprintf("SELECT %s FROM %s WHERE id = ? AND deleted = false", strings.Join(cols, ","), table), id)
+	row := k.db.QueryRowContext(ctx, fmt.Sprintf("SELECT %s FROM %s WHERE id = ? AND deleted = false", strings.Join(cols, ","), table), id)
 	values := make([]interface{}, len(cols))
 	for i := range values {
 		var value string
@@ -326,9 +302,9 @@ func (k *Keeper) GetData(user_id int, table string, id int) (map[string]string, 
 	return data, nil
 }
 
-func (k *Keeper) GetAllData(table string, columns ...string) ([]map[string]string, error) {
+func (k *Keeper) GetAllData(ctx context.Context, table string, columns ...string) ([]map[string]string, error) {
 
-	rows, err := k.db.Query(fmt.Sprintf("SELECT %s FROM %s", strings.Join(columns, ","), table))
+	rows, err := k.db.QueryContext(ctx, fmt.Sprintf("SELECT %s FROM %s", strings.Join(columns, ","), table))
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -361,11 +337,11 @@ func (k *Keeper) GetAllData(table string, columns ...string) ([]map[string]strin
 	return data, nil
 }
 
-func (k *Keeper) ClearData(userID int, table string) error {
+func (k *Keeper) ClearData(ctx context.Context, userID int, table string) error {
 	stmt, err := k.db.Prepare(fmt.Sprintf("DELETE FROM %s WHERE user_id = ?", table))
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(userID)
+	_, err = stmt.ExecContext(ctx, userID)
 	return err
 }

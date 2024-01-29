@@ -3,7 +3,6 @@ package gksync
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,7 +14,7 @@ type Sync struct {
 	syncWithServer bool
 }
 
-var ErrNetworkUnavailable = errors.New("network unavailable")
+// var ErrNetworkUnavailable = errors.New("network unavailable")
 
 func NewSync(serverURL string, syncWithServer bool) *Sync {
 	return &Sync{
@@ -23,43 +22,44 @@ func NewSync(serverURL string, syncWithServer bool) *Sync {
 		syncWithServer: syncWithServer,
 	}
 }
-func (s *Sync) GetData(user_id int, table string, data map[string]string) error {
-	if !s.syncWithServer {
-		return nil
-	}
-	// Преобразовать данные в JSON
-	dataJson, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
 
-	// Отправить GET-запрос на сервер
-	resp, err := http.Get(fmt.Sprintf("%s/getData/%s/%d?data=%s", s.serverURL, table, user_id, dataJson))
-	if err != nil {
-		return ErrNetworkUnavailable
-	}
-	defer resp.Body.Close()
+// func (s *Sync) GetData(user_id int, table string, data map[string]string) error {
+// 	if !s.syncWithServer {
+// 		return nil
+// 	}
+// 	// Преобразовать данные в JSON
+// 	dataJson, err := json.Marshal(data)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// Прочитать ответ
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
+// 	// Отправить GET-запрос на сервер
+// 	resp, err := http.Get(fmt.Sprintf("%s/getData/%s/%d?data=%s", s.serverURL, table, user_id, dataJson))
+// 	if err != nil {
+// 		return ErrNetworkUnavailable
+// 	}
+// 	defer resp.Body.Close()
 
-	// Распарсить JSON-ответ в map[string]string
-	var responseData map[string]string
-	err = json.Unmarshal(body, &responseData)
-	if err != nil {
-		return err
-	}
+// 	// Прочитать ответ
+// 	body, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// Обновить  данные
-	for key, value := range responseData {
-		data[key] = value
-	}
+// 	// Распарсить JSON-ответ в map[string]string
+// 	var responseData map[string]string
+// 	err = json.Unmarshal(body, &responseData)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	// Обновить  данные
+// 	for key, value := range responseData {
+// 		data[key] = value
+// 	}
+
+// 	return nil
+// }
 
 func (s *Sync) AddData(user_id int, table string, data map[string]string) error {
 	if !s.syncWithServer {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/wurt83ow/gophkeeper-client/pkg/bdkeeper"
 	"github.com/wurt83ow/gophkeeper-client/pkg/client"
 	"github.com/wurt83ow/gophkeeper-client/pkg/config"
@@ -13,10 +15,17 @@ func main() {
 	option := config.NewConfig()
 	keeper := bdkeeper.NewKeeper()
 	sync := gksync.NewSync(option.ServerURL, option.SyncWithServer)
-	enc := encription.NewEnc("password")
-	service := services.NewServices(keeper, sync, enc, option)
+	sync1, err := gksync.NewClientWithResponses(option.ServerURL, option.SyncWithServer)
+	if err != nil {
+		panic("Не удалось создать сервер синхронизации") //!!!
+	}
 
-	gk := client.NewClient(service, enc, option)
+	enc := encription.NewEnc("password")
+	service := services.NewServices(keeper, sync, sync1, enc, option)
+
+	// Create a background context
+	ctx := context.Background()
+	gk := client.NewClient(ctx, service, enc, option)
 	defer gk.Close()
 
 	gk.Start()

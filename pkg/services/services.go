@@ -1,8 +1,10 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -15,22 +17,24 @@ import (
 type Service struct {
 	keeper *bdkeeper.Keeper
 	sync   *gksync.Sync
+	sync1  *gksync.ClientWithResponses
 	enc    *encription.Enc
 	opt    *config.Options
 }
 
-func NewServices(keeper *bdkeeper.Keeper, sync *gksync.Sync, enc *encription.Enc, opt *config.Options) *Service {
+func NewServices(keeper *bdkeeper.Keeper, sync *gksync.Sync, sync1 *gksync.ClientWithResponses, enc *encription.Enc, opt *config.Options) *Service {
 	return &Service{
 		keeper: keeper,
 		sync:   sync,
+		sync1:  sync1,
 		enc:    enc,
 		opt:    opt,
 	}
 }
 
-func (s *Service) Register(username string, password string) error {
+func (s *Service) Register(ctx context.Context, username string, password string) error {
 	// Проверка наличия пользователя в базе данных
-	userExists, err := s.keeper.UserExists(username)
+	userExists, err := s.keeper.UserExists(ctx, username)
 	if err != nil {
 		return err
 	}
@@ -45,7 +49,7 @@ func (s *Service) Register(username string, password string) error {
 	}
 
 	// Сохранение нового пользователя в базе данных
-	err = s.keeper.AddUser(username, hashedPassword)
+	err = s.keeper.AddUser(ctx, username, hashedPassword)
 	if err != nil {
 		return err
 	}
@@ -53,9 +57,9 @@ func (s *Service) Register(username string, password string) error {
 	return nil
 }
 
-func (s *Service) Login(username string, password string) (int, error) {
+func (s *Service) Login(ctx context.Context, username string, password string) (int, error) {
 	// Попытка получить хешированный пароль пользователя из локальной базы данных
-	hashedPassword, err := s.keeper.GetPassword(username)
+	hashedPassword, err := s.keeper.GetPassword(ctx, username)
 	if err != nil {
 		// Если пользователь не найден в локальной базе данных, попытка получить данные из сервера
 		hashedPassword, err = s.sync.GetPassword(username)
@@ -70,7 +74,7 @@ func (s *Service) Login(username string, password string) (int, error) {
 	}
 
 	// Если пароли совпадают, получаем идентификатор пользователя
-	userID, err := s.keeper.GetUserID(username)
+	userID, err := s.keeper.GetUserID(ctx, username)
 	if err != nil {
 		// Если идентификатор пользователя не найден в локальной базе данных, попытка получить его из сервера
 		userID, err = s.sync.GetUserID(username)
@@ -93,7 +97,7 @@ func (s *Service) SyncFile(userID int, filePath string) error {
 	return nil
 }
 
-func (s *Service) SyncAllData(user_id int) error {
+func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 	// Список всех таблиц данных
 	tables := []string{"UserCredentials", "CreditCardData", "TextData", "FilesData"}
 
@@ -106,14 +110,14 @@ func (s *Service) SyncAllData(user_id int) error {
 		}
 
 		// Очищаем соответствующую таблицу в локальной базе данных
-		err = s.keeper.ClearData(user_id, table)
+		err = s.keeper.ClearData(ctx, user_id, table)
 		if err != nil {
 			return fmt.Errorf("Ошибка при очистке таблицы %s: %v", table, err)
 		}
 
 		// Добавляем все полученные данные в локальную базу данных
 		for _, row := range data {
-			err = s.keeper.AddData(user_id, table, row)
+			err = s.keeper.AddData(ctx, user_id, table, row)
 			if err != nil {
 				return fmt.Errorf("Ошибка при добавлении данных в таблицу %s: %v", table, err)
 			}
@@ -122,13 +126,13 @@ func (s *Service) SyncAllData(user_id int) error {
 
 	return nil
 }
-func (s *Service) InitSync(user_id int, table string, columns ...string) error {
+func (s *Service) InitSync(ctx context.Context, user_id int, table string, columns ...string) error {
 	data, err := s.sync.GetAllData(user_id, table)
 	if err != nil {
 		return err
 	}
 	for _, item := range data {
-		err = s.keeper.AddData(user_id, table, item)
+		err = s.keeper.AddData(ctx, user_id, table, item)
 		if err != nil {
 			return err
 		}
@@ -136,21 +140,24 @@ func (s *Service) InitSync(user_id int, table string, columns ...string) error {
 	return nil
 }
 
-func (s *Service) GetData(user_id int, table string, id int) (map[string]string, error) {
+func (s *Service) GetData(ctx context.Context, user_id int, table string, id int) (map[string]string, error) {
 	// Получаем данные из keeper
-	data, err := s.keeper.GetData(user_id, table, id)
+	data, err := s.keeper.GetData(ctx, user_id, table, id)
 	if err != nil {
 		return nil, err
 	}
 
 	// Пытаемся синхронизировать данные
-	err = s.sync.GetData(user_id, table, data)
+	resp, err := s.sync1.GetGetDataTableUserID(ctx, user_id, table)
 	if err == gksync.ErrNetworkUnavailable {
 		// Если сеть недоступна, помечаем данные для синхронизации
-		err = s.keeper.MarkForSync(user_id, table, data)
+		err = s.keeper.MarkForSync(ctx, user_id, table, data)
 		if err != nil {
 			return nil, err
 		}
+	} else if resp.StatusCode != http.StatusOK {
+		// Обработка ошибок HTTP
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	// Расшифровка данных перед возвратом
@@ -165,7 +172,7 @@ func (s *Service) GetData(user_id int, table string, id int) (map[string]string,
 	return data, err
 }
 
-func (s *Service) AddData(user_id int, table string, data map[string]string) error {
+func (s *Service) AddData(ctx context.Context, user_id int, table string, data map[string]string) error {
 	// Шифрование каждого значения в данных перед их сохранением
 	encryptedData := make(map[string]string)
 	for key, value := range data {
@@ -176,18 +183,18 @@ func (s *Service) AddData(user_id int, table string, data map[string]string) err
 		encryptedData[key] = encryptedValue
 	}
 
-	err := s.keeper.AddData(user_id, table, encryptedData)
+	err := s.keeper.AddData(ctx, user_id, table, encryptedData)
 	if err != nil {
 		return err
 	}
 	err = s.sync.AddData(user_id, table, encryptedData)
 	if err == gksync.ErrNetworkUnavailable {
-		err = s.keeper.MarkForSync(user_id, table, encryptedData)
+		err = s.keeper.MarkForSync(ctx, user_id, table, encryptedData)
 	}
 	return err
 }
 
-func (s *Service) UpdateData(user_id int, id int, table string, data map[string]string) error {
+func (s *Service) UpdateData(ctx context.Context, user_id int, id int, table string, data map[string]string) error {
 	// Шифрование каждого значения в данных перед их обновлением
 	encryptedData := make(map[string]string)
 	for key, value := range data {
@@ -198,36 +205,36 @@ func (s *Service) UpdateData(user_id int, id int, table string, data map[string]
 		encryptedData[key] = encryptedValue
 	}
 
-	err := s.keeper.UpdateData(user_id, id, table, encryptedData)
+	err := s.keeper.UpdateData(ctx, user_id, id, table, encryptedData)
 	if err != nil {
 		return err
 	}
 	err = s.sync.UpdateData(user_id, id, table, encryptedData)
 	if err == gksync.ErrNetworkUnavailable {
-		err = s.keeper.MarkForSync(user_id, table, encryptedData)
+		err = s.keeper.MarkForSync(ctx, user_id, table, encryptedData)
 	}
 	return err
 }
 
-func (s *Service) DeleteData(user_id int, table string, id string) error {
-	err := s.keeper.DeleteData(user_id, table, id)
+func (s *Service) DeleteData(ctx context.Context, user_id int, table string, id string) error {
+	err := s.keeper.DeleteData(ctx, user_id, table, id)
 	if err != nil {
 		return err
 	}
 	err = s.sync.DeleteData(user_id, table, id)
 	if err == gksync.ErrNetworkUnavailable {
 		data := map[string]string{"id": id}
-		err = s.keeper.MarkForSync(user_id, table, data)
+		err = s.keeper.MarkForSync(ctx, user_id, table, data)
 	}
 	return err
 }
 
-func (s *Service) GetAllData(user_id int, table string, columns ...string) ([]map[string]string, error) {
+func (s *Service) GetAllData(ctx context.Context, user_id int, table string, columns ...string) ([]map[string]string, error) {
 	var data []map[string]string
 	var err error
 
 	// Попытка получить данные из keeper
-	data, err = s.keeper.GetAllData(table, columns...)
+	data, err = s.keeper.GetAllData(ctx, table, columns...)
 	if err != nil {
 		// Если данные не удалось получить из keeper, попытка получить данные из sync
 		data, err = s.sync.GetAllData(user_id, table)
@@ -239,7 +246,7 @@ func (s *Service) GetAllData(user_id int, table string, columns ...string) ([]ma
 
 			// Пометить все элементы данных для синхронизации
 			for _, item := range data {
-				err = s.keeper.MarkForSync(user_id, table, item)
+				err = s.keeper.MarkForSync(ctx, user_id, table, item)
 				if err != nil {
 					return nil, err // Возвращаем ошибку, если не удалось пометить элемент для синхронизации
 				}
@@ -263,14 +270,14 @@ func (s *Service) GetAllData(user_id int, table string, columns ...string) ([]ma
 	return data, nil // Возвращаем данные без ошибок
 }
 
-func (s *Service) ClearData(user_id int, table string) error {
-	err := s.keeper.ClearData(user_id, table)
+func (s *Service) ClearData(ctx context.Context, user_id int, table string) error {
+	err := s.keeper.ClearData(ctx, user_id, table)
 	if err != nil {
 		return err
 	}
 	err = s.sync.ClearData(user_id, table)
 	if err == gksync.ErrNetworkUnavailable {
-		err = s.keeper.MarkForSync(user_id, table, nil)
+		err = s.keeper.MarkForSync(ctx, user_id, table, nil)
 	}
 	return err
 }
