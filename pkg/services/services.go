@@ -54,6 +54,12 @@ func (s *Service) Register(ctx context.Context, username string, password string
 		return err
 	}
 
+	// Сохранение нового пользователя на сервере
+	err = s.sync.AddUser(ctx, username, hashedPassword)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -148,7 +154,7 @@ func (s *Service) GetData(ctx context.Context, user_id int, table string, id int
 	}
 
 	// Пытаемся синхронизировать данные
-	resp, err := s.sync1.GetGetDataTableUserID(ctx, user_id, table)
+	resp, err := s.sync1.GetGetDataTableUserID(ctx, table, user_id)
 	if err == gksync.ErrNetworkUnavailable {
 		// Если сеть недоступна, помечаем данные для синхронизации
 		err = s.keeper.MarkForSync(ctx, user_id, table, data)
@@ -234,25 +240,28 @@ func (s *Service) GetAllData(ctx context.Context, user_id int, table string, col
 	var err error
 
 	// Попытка получить данные из keeper
-	data, err = s.keeper.GetAllData(ctx, table, columns...)
+	// data, err = s.keeper.GetAllData(ctx, table, columns...)
+	// if err != nil {
+	fmt.Println("33333333333333333333333333333333333")
+	data1, _ := s.sync1.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id)
+	fmt.Println("33333333333333333333333333333333333", data1.JSON200)
+	// Если данные не удалось получить из keeper, попытка получить данные из sync
+	data, err = s.sync.GetAllData(user_id, table)
 	if err != nil {
-		// Если данные не удалось получить из keeper, попытка получить данные из sync
-		data, err = s.sync.GetAllData(user_id, table)
-		if err != nil {
-			if err == gksync.ErrNetworkUnavailable {
-				// Если сеть недоступна, возвращаем ошибку
-				return nil, err
-			}
+		if err == gksync.ErrNetworkUnavailable {
+			// Если сеть недоступна, возвращаем ошибку
+			return nil, err
+		}
 
-			// Пометить все элементы данных для синхронизации
-			for _, item := range data {
-				err = s.keeper.MarkForSync(ctx, user_id, table, item)
-				if err != nil {
-					return nil, err // Возвращаем ошибку, если не удалось пометить элемент для синхронизации
-				}
+		// Пометить все элементы данных для синхронизации
+		for _, item := range data {
+			err = s.keeper.MarkForSync(ctx, user_id, table, item)
+			if err != nil {
+				return nil, err // Возвращаем ошибку, если не удалось пометить элемент для синхронизации
 			}
 		}
 	}
+	// }
 
 	// Расшифровка данных перед возвратом
 	for i, item := range data {
