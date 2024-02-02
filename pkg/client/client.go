@@ -227,13 +227,13 @@ func (c *Client) login() {
 		c.userID = userID
 		fmt.Println("Вход в систему прошел успешно!")
 
-		// Здесь начинается новая сессия
-		if c.opt.SyncWithServer {
-			err = c.service.SyncAllData(c.ctx, userID)
-			if err != nil {
-				fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
-			}
-		}
+		// // Здесь начинается новая сессия
+		// if c.opt.SyncWithServer {
+		// 	err = c.service.SyncAllData(c.ctx, userID)
+		// 	if err != nil {
+		// 		fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
+		// 	}
+		// }
 
 		encryptedUserID, err := c.enc.Encrypt(strconv.Itoa(c.userID))
 		if err != nil {

@@ -24,14 +24,14 @@ type PostAddDataTableUserIDJSONBody map[string]string
 
 // PostLoginJSONBody defines parameters for PostLogin.
 type PostLoginJSONBody struct {
-	Password *string `json:"password,omitempty"`
-	Username *string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Username string `json:"username,omitempty"`
 }
 
 // PostRegisterJSONBody defines parameters for PostRegister.
 type PostRegisterJSONBody struct {
-	Password *string `json:"password,omitempty"`
-	Username *string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Username string `json:"username,omitempty"`
 }
 
 // PutUpdateDataTableUserIDIdJSONBody defines parameters for PutUpdateDataTableUserIDId.
@@ -67,8 +67,6 @@ type Client struct {
 	// paths in the swagger spec will be appended to the server.
 	Server string
 
-	syncWithServer bool
-
 	// Doer for performing requests, typically a *http.Client with any
 	// customized settings, such as certificate chains.
 	Client HttpRequestDoer
@@ -82,11 +80,10 @@ type Client struct {
 type ClientOption func(*Client) error
 
 // Creates a new Client, with reasonable defaults
-func NewClient(server string, syncWithServer bool, opts ...ClientOption) (*Client, error) {
+func NewClient(server string, opts ...ClientOption) (*Client, error) {
 	// create a client with sane default values
 	client := Client{
-		Server:         server,
-		syncWithServer: syncWithServer,
+		Server: server,
 	}
 	// mutate client and add all optional params
 	for _, o := range opts {
@@ -229,9 +226,6 @@ func (c *Client) GetGetAllDataTableUserID(ctx context.Context, table string, use
 
 func (c *Client) GetGetDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	fmt.Println("sfdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", table, userID)
-	if !c.syncWithServer {
-		return nil, nil
-	}
 
 	req, err := NewGetGetDataTableUserIDRequest(c.Server, table, userID)
 	if err != nil {
@@ -843,8 +837,8 @@ type ClientWithResponses struct {
 
 // NewClientWithResponses creates a new ClientWithResponses, which wraps
 // Client with return type handling
-func NewClientWithResponses(server string, syncWithServer bool, opts ...ClientOption) (*ClientWithResponses, error) {
-	client, err := NewClient(server, syncWithServer, opts...)
+func NewClientWithResponses(server string, opts ...ClientOption) (*ClientWithResponses, error) {
+	client, err := NewClient(server, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1062,7 +1056,8 @@ type PostLoginResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *struct {
-		Token *string `json:"token,omitempty"`
+		Token  string `json:"token,omitempty"`
+		UserID int    `json:"userID,omitempty"`
 	}
 }
 
@@ -1444,7 +1439,8 @@ func ParsePostLoginResponse(rsp *http.Response) (*PostLoginResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
-			Token *string `json:"token,omitempty"`
+			Token  string `json:"token,omitempty"`
+			UserID int    `json:"userID,omitempty"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
