@@ -160,9 +160,9 @@ type ClientInterface interface {
 	PostSendFileUserIDWithBody(ctx context.Context, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutUpdateDataTableUserIDIdWithBody request with any body
-	PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table string, userID int, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table string, userID int, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, id int, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, id string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PostAddDataTableUserIDWithBody(ctx context.Context, table string, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -342,7 +342,7 @@ func (c *Client) PostSendFileUserIDWithBody(ctx context.Context, userID int, con
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table string, userID int, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table string, userID int, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPutUpdateDataTableUserIDIdRequestWithBody(c.Server, table, userID, id, contentType, body)
 	if err != nil {
 		return nil, err
@@ -354,7 +354,7 @@ func (c *Client) PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table s
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, id int, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, id string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPutUpdateDataTableUserIDIdRequest(c.Server, table, userID, id, body)
 	if err != nil {
 		return nil, err
@@ -776,7 +776,7 @@ func NewPostSendFileUserIDRequestWithBody(server string, userID int, contentType
 }
 
 // NewPutUpdateDataTableUserIDIdRequest calls the generic PutUpdateDataTableUserIDId builder with application/json body
-func NewPutUpdateDataTableUserIDIdRequest(server string, table string, userID int, id int, body PutUpdateDataTableUserIDIdJSONRequestBody) (*http.Request, error) {
+func NewPutUpdateDataTableUserIDIdRequest(server string, table string, userID int, id string, body PutUpdateDataTableUserIDIdJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
@@ -787,7 +787,7 @@ func NewPutUpdateDataTableUserIDIdRequest(server string, table string, userID in
 }
 
 // NewPutUpdateDataTableUserIDIdRequestWithBody generates requests for PutUpdateDataTableUserIDId with any type of body
-func NewPutUpdateDataTableUserIDIdRequestWithBody(server string, table string, userID int, id int, contentType string, body io.Reader) (*http.Request, error) {
+func NewPutUpdateDataTableUserIDIdRequestWithBody(server string, table string, userID int, id string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -916,9 +916,9 @@ type ClientWithResponsesInterface interface {
 	PostSendFileUserIDWithBodyWithResponse(ctx context.Context, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSendFileUserIDResponse, error)
 
 	// PutUpdateDataTableUserIDIdWithBodyWithResponse request with any body
-	PutUpdateDataTableUserIDIdWithBodyWithResponse(ctx context.Context, table string, userID int, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutUpdateDataTableUserIDIdResponse, error)
+	PutUpdateDataTableUserIDIdWithBodyWithResponse(ctx context.Context, table string, userID int, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutUpdateDataTableUserIDIdResponse, error)
 
-	PutUpdateDataTableUserIDIdWithResponse(ctx context.Context, table string, userID int, id int, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutUpdateDataTableUserIDIdResponse, error)
+	PutUpdateDataTableUserIDIdWithResponse(ctx context.Context, table string, userID int, id string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutUpdateDataTableUserIDIdResponse, error)
 }
 
 type PostAddDataTableUserIDResponse struct {
@@ -1275,7 +1275,7 @@ func (c *ClientWithResponses) PostSendFileUserIDWithBodyWithResponse(ctx context
 }
 
 // PutUpdateDataTableUserIDIdWithBodyWithResponse request with arbitrary body returning *PutUpdateDataTableUserIDIdResponse
-func (c *ClientWithResponses) PutUpdateDataTableUserIDIdWithBodyWithResponse(ctx context.Context, table string, userID int, id int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutUpdateDataTableUserIDIdResponse, error) {
+func (c *ClientWithResponses) PutUpdateDataTableUserIDIdWithBodyWithResponse(ctx context.Context, table string, userID int, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutUpdateDataTableUserIDIdResponse, error) {
 	rsp, err := c.PutUpdateDataTableUserIDIdWithBody(ctx, table, userID, id, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -1283,7 +1283,7 @@ func (c *ClientWithResponses) PutUpdateDataTableUserIDIdWithBodyWithResponse(ctx
 	return ParsePutUpdateDataTableUserIDIdResponse(rsp)
 }
 
-func (c *ClientWithResponses) PutUpdateDataTableUserIDIdWithResponse(ctx context.Context, table string, userID int, id int, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutUpdateDataTableUserIDIdResponse, error) {
+func (c *ClientWithResponses) PutUpdateDataTableUserIDIdWithResponse(ctx context.Context, table string, userID int, id string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*PutUpdateDataTableUserIDIdResponse, error) {
 	rsp, err := c.PutUpdateDataTableUserIDId(ctx, table, userID, id, body, reqEditors...)
 	if err != nil {
 		return nil, err

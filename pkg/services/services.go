@@ -177,7 +177,7 @@ func (s *Service) InitSync(ctx context.Context, user_id int, table string, colum
 	return nil
 }
 
-// func (s *Service) GetData(ctx context.Context, user_id int, table string, id int) (map[string]string, error) {
+// func (s *Service) GetData(ctx context.Context, user_id int, table string, id string) (map[string]string, error) {
 // 	// Получаем данные из keeper
 // 	data, err := s.keeper.GetData(ctx, user_id, table, id)
 // 	if err != nil {
@@ -210,7 +210,7 @@ func (s *Service) InitSync(ctx context.Context, user_id int, table string, colum
 
 //		return data, err
 //	}
-func (s *Service) GetData(ctx context.Context, user_id int, table string, id int) (map[string]string, error) {
+func (s *Service) GetData(ctx context.Context, user_id int, table string, id string) (map[string]string, error) {
 	var data map[string]string
 	var err error
 
@@ -288,7 +288,7 @@ func (s *Service) AddData(ctx context.Context, user_id int, table string, data m
 	return err
 }
 
-func (s *Service) UpdateData(ctx context.Context, user_id int, id int, table string, data map[string]string) error {
+func (s *Service) UpdateData(ctx context.Context, user_id int, id string, table string, data map[string]string) error {
 	// Шифрование каждого значения в данных перед их обновлением
 	encryptedData := make(map[string]string)
 	for key, value := range data {

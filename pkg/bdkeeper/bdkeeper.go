@@ -22,6 +22,9 @@ var embeddedMigrations embed.FS
 type Keeper struct {
 	db *sql.DB
 }
+type Data interface {
+	Fields() ([]string, []interface{})
+}
 
 func NewKeeper() *Keeper {
 	db, err := sql.Open("sqlite3", "./data.db")
@@ -132,9 +135,18 @@ func (k *Keeper) IsEmpty(ctx context.Context) (bool, error) {
 	return count == 0, nil
 }
 
-func (k *Keeper) MarkForSync(ctx context.Context, user_id int, table string, data map[string]string) error {
+func (k *Keeper) MarkForSync(ctx context.Context, user_id int, table string, data Data) error {
+	// Получить данные из интерфейса Data
+	keys, values := data.Fields()
+
+	// Создать map для преобразования в JSON
+	dataMap := make(map[string]interface{})
+	for i, key := range keys {
+		dataMap[key] = values[i]
+	}
+
 	// Преобразовать данные в JSON
-	dataJson, err := json.Marshal(data)
+	dataJson, err := json.Marshal(dataMap)
 	if err != nil {
 		return err
 	}
@@ -186,18 +198,13 @@ func (k *Keeper) GetUserID(ctx context.Context, username string) (int, error) {
 	return id, nil
 }
 
-func (k *Keeper) AddData(ctx context.Context, user_id int, table string, data map[string]string) error {
-	keys := make([]string, 0, len(data)+1)        // +1 для user_id
-	values := make([]interface{}, 0, len(data)+1) // +1 для user_id
+func (k *Keeper) AddData(ctx context.Context, user_id int, table string, id string, data Data) error {
+	keys, values := data.Fields()
 
-	// Добавьте user_id в начало списков ключей и значений
-	keys = append(keys, "user_id")
-	values = append(values, user_id)
+	// Добавьте id и user_id в начало списков ключей и значений
+	keys = append([]string{"id", "user_id"}, keys...)
+	values = append([]interface{}{id, user_id}, values...)
 
-	for key, value := range data {
-		keys = append(keys, key)
-		values = append(values, value)
-	}
 	stmt, err := k.db.Prepare(fmt.Sprintf("INSERT INTO %s(%s) values(%s)", table, strings.Join(keys, ","), strings.Repeat("?,", len(keys)-1)+"?"))
 	if err != nil {
 		return err
@@ -206,15 +213,14 @@ func (k *Keeper) AddData(ctx context.Context, user_id int, table string, data ma
 	return err
 }
 
-func (k *Keeper) UpdateData(ctx context.Context, user_id int, id int, table string, data map[string]string) error {
-	keys := make([]string, 0, len(data))
-	values := make([]interface{}, 0, len(data))
-	for key, value := range data {
-		keys = append(keys, key+" = ?")
-		values = append(values, value)
+func (k *Keeper) UpdateData(ctx context.Context, user_id int, table string, id string, data Data) error {
+	keys, values := data.Fields()
+	setClauses := make([]string, len(keys))
+	for i, key := range keys {
+		setClauses[i] = key + " = ?"
 	}
 	values = append(values, user_id, id)
-	stmt, err := k.db.Prepare(fmt.Sprintf("UPDATE %s SET %s WHERE user_id = ? AND id = ?", table, strings.Join(keys, ",")))
+	stmt, err := k.db.Prepare(fmt.Sprintf("UPDATE %s SET %s WHERE user_id = ? AND id = ?", table, strings.Join(setClauses, ",")))
 	if err != nil {
 		return err
 	}
@@ -258,11 +264,11 @@ func (k *Keeper) DeleteData(ctx context.Context, user_id int, table string, id s
 	return err
 }
 
-func (k *Keeper) GetData(ctx context.Context, user_id int, table string, id int) (map[string]string, error) {
+func (k *Keeper) GetData(ctx context.Context, user_id int, table string, id string, data Data) error {
 	// Получаем все колонки таблицы
 	columns, err := k.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get columns: %w", err)
+		return fmt.Errorf("failed to get columns: %w", err)
 	}
 
 	var cols []string
@@ -277,7 +283,7 @@ func (k *Keeper) GetData(ctx context.Context, user_id int, table string, id int)
 		}
 		err := columns.Scan(&col.Cid, &col.Name, &col.Type, &col.NotNull, &col.Dflt_value, &col.Pk)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan column: %w", err)
+			return fmt.Errorf("failed to scan column: %w", err)
 		}
 		// Исключаем ненужные столбцы
 		if col.Name != "id" && col.Name != "deleted" && col.Name != "user_id" && col.Name != "updated_at" {
@@ -293,13 +299,25 @@ func (k *Keeper) GetData(ctx context.Context, user_id int, table string, id int)
 	}
 	err = row.Scan(values...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to scan row: %w", err)
+		return fmt.Errorf("failed to scan row: %w", err)
 	}
-	data := make(map[string]string)
+
+	// Заполняем данные в структуре Data
+	fields, _ := data.Fields()
 	for i, column := range cols {
-		data[column] = *(values[i].(*string))
+		for j, field := range fields {
+			if field == column {
+				switch v := values[i].(type) {
+				case *string:
+					*values[j].(*string) = *v
+				case *int:
+					*values[j].(*int) = *v
+				}
+			}
+		}
 	}
-	return data, nil
+
+	return nil
 }
 
 func (k *Keeper) GetAllData(ctx context.Context, table string, columns ...string) ([]map[string]string, error) {

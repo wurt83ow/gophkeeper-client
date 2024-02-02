@@ -301,9 +301,7 @@ func (c *Client) list() {
 		fmt.Println("No entries found in the table:", tableName)
 		return
 	}
-	for _, entry := range data {
-		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-	}
+	c.printAllData(data)
 }
 
 func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[string]string)) {
@@ -313,23 +311,18 @@ func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[strin
 			fmt.Println("No entries found in the table:", tableName)
 			return
 		}
+		c.printAllData(data)
 
-		for _, entry := range data {
-			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-		}
-
-		c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
-		strid, _ := c.rl.Readline()
-
-		if tableName == "" || strid == "" {
+		if tableName == "" {
 			return
 		}
-		id, err := strconv.Atoi(strid)
+		row, err := getRowFromUserInput(data, c.rl)
 		if err != nil {
-			fmt.Println("Ошибка при преобразовании ID в целое число:", err)
+			fmt.Println(err)
 			return
 		}
-		newdata, err := c.service.GetData(c.ctx, c.userID, tableName, id)
+
+		newdata, err := c.service.GetData(c.ctx, c.userID, tableName, row["id"])
 		if err != nil {
 			fmt.Printf("Failed to get data: %s\n", err)
 		} else {
@@ -344,6 +337,13 @@ func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[strin
 		}
 	}
 }
+
+func getStringFromSlice(data []map[string]string, index int) (map[string]string, error) {
+	if index < 0 || index >= len(data) {
+		return nil, errors.New("index out of range")
+	}
+	return data[index], nil
+}
 func (c *Client) getBinaryDataAndSave(tableName string) {
 
 	data, _ := c.service.GetAllData(c.ctx, c.userID, tableName, "id", "meta_info")
@@ -352,22 +352,14 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 		return
 	}
 
-	for _, entry := range data {
-		fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-	}
-
-	c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
-	strid, _ := c.rl.Readline()
-
-	if strid == "" {
-		return
-	}
-	id, err := strconv.Atoi(strid)
+	c.printAllData(data)
+	row, err := getRowFromUserInput(data, c.rl)
 	if err != nil {
-		fmt.Println("Ошибка при преобразовании ID в целое число:", err)
+		fmt.Println(err)
 		return
 	}
-	newdata, err := c.service.GetData(c.ctx, c.userID, tableName, id)
+
+	newdata, err := c.service.GetData(c.ctx, c.userID, tableName, row["id"])
 	if err != nil {
 		fmt.Printf("Failed to get data: %s\n", err)
 	} else {
@@ -399,6 +391,13 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 
 		fmt.Println("File decrypted and saved successfully!")
 
+	}
+}
+
+func (c *Client) printAllData(data []map[string]string) {
+	fmt.Println(data)
+	for i, entry := range data {
+		fmt.Printf("#%d: %s\n", i+1, entry["meta_info"])
 	}
 }
 
@@ -580,31 +579,22 @@ func (c *Client) editAllData(tableName string, getDataFunc func(oldData map[stri
 			return
 		}
 
-		for _, entry := range data {
-			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-		}
-
-		c.rl.SetPrompt("Enter the ID of the entry you want to get: ")
-		strid, _ := c.rl.Readline()
-
-		if strid == "" {
-			return
-		}
-		id, err := strconv.Atoi(strid)
-
+		c.printAllData(data)
+		row, err := getRowFromUserInput(data, c.rl)
 		if err != nil {
-			fmt.Println("Ошибка при преобразовании ID в целое число:", err)
+			fmt.Println(err)
 			return
 		}
+
 		// Получение существующих данных
-		oldData, err := c.service.GetData(c.ctx, c.userID, tableName, id)
+		oldData, err := c.service.GetData(c.ctx, c.userID, tableName, row["id"])
 
 		if err != nil {
 			fmt.Printf("Failed to get data: %s\n", err)
 			return
 		}
 		newData := getDataFunc(oldData)
-		err = c.service.UpdateData(c.ctx, c.userID, id, tableName, newData)
+		err = c.service.UpdateData(c.ctx, c.userID, row["id"], tableName, newData)
 		if err != nil {
 			fmt.Printf("Failed to edit data: %s\n", err)
 		} else {
@@ -728,9 +718,7 @@ func (c *Client) DeleteData() {
 			fmt.Println("No entries found in the table:", tableName)
 			return
 		}
-		for _, entry := range data {
-			fmt.Printf("#%s: %s\n", entry["id"], entry["meta_info"])
-		}
+		c.printAllData(data)
 
 		fmt.Println("Enter id or meta_info to delete:")
 		line, _ = c.rl.Readline()
@@ -789,4 +777,22 @@ func (c *Client) DeleteData() {
 			break
 		}
 	}
+}
+
+func getRowFromUserInput(data []map[string]string, rl *readline.Instance) (map[string]string, error) {
+	rl.SetPrompt("Enter the number of the entry you want to get: ")
+	strnum, _ := rl.Readline()
+
+	if strnum == "" {
+		return nil, errors.New("no input provided")
+	}
+	num, err := strconv.Atoi(strnum)
+	if err != nil {
+		return nil, fmt.Errorf("Ошибка при преобразовании номера строки в целое число: %w", err)
+	}
+	row, err := getStringFromSlice(data, num)
+	if err != nil {
+		return nil, fmt.Errorf("Ошибка при получении строки по её номеру: %w", err)
+	}
+	return row, nil
 }
