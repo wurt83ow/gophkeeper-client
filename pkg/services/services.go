@@ -72,45 +72,45 @@ func (s *Service) Register(ctx context.Context, username string, password string
 	return nil
 }
 
-func (s *Service) Login(ctx context.Context, username string, password string) (int, error) {
+func (s *Service) Login(ctx context.Context, username string, password string) (int, string, error) {
+	var userID int
+	var token string
+	var err error
+
 	// Попытка получить хешированный пароль пользователя из локальной базы данных
 	hashedPassword, err := s.keeper.GetPassword(ctx, username)
-	if err != nil && s.syncWithServer {
-		// Если пользователь не найден в локальной базе данных, попытка получить данные из сервера
-		hashedPassword, err = s.sync.GetPassword(username)
-		if err != nil {
-			return 0, err
-		}
+	if err != nil {
+		return 0, "", err
 	}
 
 	// Сравнение хешированного пароля с хешем введенного пароля
 	if !s.enc.CompareHashAndPassword(hashedPassword, password) {
-		return 0, errors.New("Invalid password")
-	}
-
-	// Если пароли совпадают, получаем идентификатор пользователя
-	userID, err := s.keeper.GetUserID(ctx, username)
-	if err != nil {
-		return 0, errors.New("Invalid userId")
+		return 0, "", errors.New("Invalid password")
 	}
 
 	if s.syncWithServer {
+		// Если syncWithServer=true, получаем userID и jwtToken с сервера
 		body := gksync.PostLoginJSONRequestBody{
 			Username: username,
 			Password: hashedPassword,
 		}
-		// Если идентификатор пользователя не найден в локальной базе данных, попытка получить его из сервера
 		resp, err := s.sync1.PostLoginWithResponse(ctx, body)
 		if err != nil {
-			return 0, err
+			return 0, "", err
 		}
-		fmt.Println("sfdljsfdkjfsdkjsskldjsldkjflkjsdfklsdfj", resp.JSON200)
-		fmt.Println(string(resp.JSON200.Token))
-		fmt.Println(resp.JSON200.UserID)
+
+		userID = resp.JSON200.UserID
+		token = string(resp.JSON200.Token)
+	} else {
+		// Если syncWithServer=false, получаем только userID из keeper
+		userID, err = s.keeper.GetUserID(ctx, username)
+		if err != nil {
+			return 0, "", errors.New("Invalid userId")
+		}
 	}
 
-	// Возвращаем идентификатор пользователя
-	return userID, nil
+	// Возвращаем идентификатор пользователя и токен
+	return userID, token, nil
 }
 
 func (s *Service) SyncFile(userID int, filePath string) error {
@@ -177,25 +177,77 @@ func (s *Service) InitSync(ctx context.Context, user_id int, table string, colum
 	return nil
 }
 
+// func (s *Service) GetData(ctx context.Context, user_id int, table string, id int) (map[string]string, error) {
+// 	// Получаем данные из keeper
+// 	data, err := s.keeper.GetData(ctx, user_id, table, id)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	// Пытаемся синхронизировать данные
+// 	if s.syncWithServer {
+// 		resp, err := s.sync1.GetGetDataTableUserID(ctx, table, user_id)
+// 		if err == gksync.ErrNetworkUnavailable {
+// 			// Если сеть недоступна, помечаем данные для синхронизации
+// 			err = s.keeper.MarkForSync(ctx, user_id, table, data)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 		} else if resp.StatusCode != http.StatusOK {
+// 			// Обработка ошибок HTTP
+// 			return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+// 		}
+// 	}
+
+// 	// Расшифровка данных перед возвратом
+// 	for key, value := range data {
+// 		decryptedValue, err := s.enc.Decrypt(value)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		data[key] = decryptedValue
+// 	}
+
+//		return data, err
+//	}
 func (s *Service) GetData(ctx context.Context, user_id int, table string, id int) (map[string]string, error) {
-	// Получаем данные из keeper
-	data, err := s.keeper.GetData(ctx, user_id, table, id)
-	if err != nil {
-		return nil, err
-	}
+	var data map[string]string
+	var err error
 
 	// Пытаемся синхронизировать данные
 	if s.syncWithServer {
-		resp, err := s.sync1.GetGetDataTableUserID(ctx, table, user_id)
-		if err == gksync.ErrNetworkUnavailable {
+		resp, err := s.sync1.GetGetDataTableUserIDWithResponse(ctx, table, user_id)
+		if err != nil && err != gksync.ErrNetworkUnavailable {
+			// Обработка ошибок HTTP и других ошибок, кроме недоступности сети
+			return nil, fmt.Errorf("unexpected error: %v", err)
+		}
+
+		if resp.StatusCode() == http.StatusOK {
+			// Если данные успешно получены с сервера, используем их
+			serverData := *resp.JSON200 // предполагается, что resp.Body содержит данные
+
+			// Обновляем локальную базу данных новыми данными
+			err = s.keeper.UpdateData(ctx, user_id, id, table, serverData)
+			if err != nil {
+				return nil, err
+			}
+
+			data = serverData
+
+		} else if err == gksync.ErrNetworkUnavailable {
 			// Если сеть недоступна, помечаем данные для синхронизации
 			err = s.keeper.MarkForSync(ctx, user_id, table, data)
 			if err != nil {
 				return nil, err
 			}
-		} else if resp.StatusCode != http.StatusOK {
-			// Обработка ошибок HTTP
-			return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		}
+	}
+
+	if data == nil {
+		// Если данные не были получены с сервера, получаем данные из keeper
+		data, err = s.keeper.GetData(ctx, user_id, table, id)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -208,7 +260,7 @@ func (s *Service) GetData(ctx context.Context, user_id int, table string, id int
 		data[key] = decryptedValue
 	}
 
-	return data, err
+	return data, nil
 }
 
 func (s *Service) AddData(ctx context.Context, user_id int, table string, data map[string]string) error {
@@ -227,7 +279,7 @@ func (s *Service) AddData(ctx context.Context, user_id int, table string, data m
 		return err
 	}
 	if s.syncWithServer {
-		err = s.sync.AddData(user_id, table, encryptedData)
+		_, err = s.sync1.PostAddDataTableUserID(ctx, table, user_id, encryptedData)
 		if err == gksync.ErrNetworkUnavailable {
 			err = s.keeper.MarkForSync(ctx, user_id, table, encryptedData)
 		}

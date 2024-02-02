@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/oapi-codegen/runtime"
+	"github.com/wurt83ow/gophkeeper-client/pkg/appcontext"
 )
 
 var ErrNetworkUnavailable = errors.New("network unavailable")
@@ -182,6 +183,16 @@ func (c *Client) PostAddDataTableUserID(ctx context.Context, table string, userI
 		return nil, err
 	}
 	req = req.WithContext(ctx)
+
+	// Извлеките JWT-токен из контекста
+	token, ok := appcontext.GetJWTToken(ctx)
+	if !ok {
+		return nil, fmt.Errorf("не удалось получить JWT-токен из контекста")
+	}
+
+	// Добавьте JWT-токен в заголовок Authorization
+	req.Header.Add("Authorization", token)
+
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
@@ -225,13 +236,22 @@ func (c *Client) GetGetAllDataTableUserID(ctx context.Context, table string, use
 }
 
 func (c *Client) GetGetDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	fmt.Println("sfdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", table, userID)
 
 	req, err := NewGetGetDataTableUserIDRequest(c.Server, table, userID)
 	if err != nil {
 		return nil, err
 	}
 	req = req.WithContext(ctx)
+
+	// Извлеките JWT-токен из контекста
+	token, ok := appcontext.GetJWTToken(ctx)
+	if !ok {
+		return nil, fmt.Errorf("не удалось получить JWT-токен из контекста")
+	}
+
+	// Добавьте JWT-токен в заголовок Authorization
+	req.Header.Add("Authorization", token)
+
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
