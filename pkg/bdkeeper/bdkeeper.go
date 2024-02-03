@@ -132,7 +132,7 @@ func (k *Keeper) IsEmpty(ctx context.Context) (bool, error) {
 	return count == 0, nil
 }
 
-func (k *Keeper) MarkForSync(ctx context.Context, user_id int, table string, data map[string]string) error {
+func (k *Keeper) MarkForSync(ctx context.Context, table string, user_id int, entry_id string, data map[string]string) error {
 	// Преобразовать данные в JSON
 	dataJson, err := json.Marshal(data)
 	if err != nil {
@@ -140,7 +140,7 @@ func (k *Keeper) MarkForSync(ctx context.Context, user_id int, table string, dat
 	}
 
 	// Добавить запись в таблицу SyncQueue
-	_, err = k.db.ExecContext(ctx, "INSERT INTO SyncQueue (user_id, table_name, data) VALUES (?, ?, ?)", user_id, table, dataJson)
+	_, err = k.db.ExecContext(ctx, "INSERT INTO SyncQueue (user_id, entry_id, table_name, data) VALUES (?, ?, ?, ?)", user_id, entry_id, table, dataJson)
 	return err
 }
 
@@ -186,13 +186,13 @@ func (k *Keeper) GetUserID(ctx context.Context, username string) (int, error) {
 	return id, nil
 }
 
-func (k *Keeper) AddData(ctx context.Context, user_id int, table string, data map[string]string) error {
-	keys := make([]string, 0, len(data)+1)        // +1 для user_id
-	values := make([]interface{}, 0, len(data)+1) // +1 для user_id
+func (k *Keeper) AddData(ctx context.Context, table string, user_id int, entry_id string, data map[string]string) error {
+	keys := make([]string, 0, len(data)+2)        // +2 для user_id и entry_id
+	values := make([]interface{}, 0, len(data)+2) // +2 для user_id и entry_id
 
-	// Добавьте user_id в начало списков ключей и значений
-	keys = append(keys, "user_id")
-	values = append(values, user_id)
+	// Добавьте user_id и entry_id в начало списков ключей и значений
+	keys = append(keys, "user_id", "entry_id")
+	values = append(values, user_id, entry_id)
 
 	for key, value := range data {
 		keys = append(keys, key)
@@ -206,14 +206,14 @@ func (k *Keeper) AddData(ctx context.Context, user_id int, table string, data ma
 	return err
 }
 
-func (k *Keeper) UpdateData(ctx context.Context, user_id int, id string, table string, data map[string]string) error {
+func (k *Keeper) UpdateData(ctx context.Context, table string, user_id int, entry_id string, data map[string]string) error {
 	keys := make([]string, 0, len(data))
 	values := make([]interface{}, 0, len(data))
 	for key, value := range data {
 		keys = append(keys, key+" = ?")
 		values = append(values, value)
 	}
-	values = append(values, user_id, id)
+	values = append(values, user_id, entry_id)
 	stmt, err := k.db.Prepare(fmt.Sprintf("UPDATE %s SET %s WHERE user_id = ? AND id = ?", table, strings.Join(keys, ",")))
 	if err != nil {
 		return err
@@ -222,20 +222,20 @@ func (k *Keeper) UpdateData(ctx context.Context, user_id int, id string, table s
 	return err
 }
 
-func (k *Keeper) DeleteData(ctx context.Context, user_id int, table string, id string) error {
+func (k *Keeper) DeleteData(ctx context.Context, table string, user_id int, entry_id string) error {
 	// Check user_id and table
 	if user_id == 0 || table == "" {
 		return errors.New("user_id and table must be specified")
 	}
 
 	// Check id
-	if id == "" {
+	if entry_id == "" {
 		return errors.New("id must be specified")
 	}
 
 	// Prepare the query
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE user_id = ? AND id = ?", table)
-	args := []interface{}{user_id, id}
+	args := []interface{}{user_id, entry_id}
 
 	// Execute the query
 	row := k.db.QueryRowContext(ctx, query, args...)
@@ -258,7 +258,7 @@ func (k *Keeper) DeleteData(ctx context.Context, user_id int, table string, id s
 	return err
 }
 
-func (k *Keeper) GetData(ctx context.Context, user_id int, table string, id string) (map[string]string, error) {
+func (k *Keeper) GetData(ctx context.Context, table string, user_id int, entry_id string) (map[string]string, error) {
 	// Получаем все колонки таблицы
 	columns, err := k.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
@@ -285,7 +285,7 @@ func (k *Keeper) GetData(ctx context.Context, user_id int, table string, id stri
 		}
 	}
 
-	row := k.db.QueryRowContext(ctx, fmt.Sprintf("SELECT %s FROM %s WHERE id = ? AND deleted = false", strings.Join(cols, ","), table), id)
+	row := k.db.QueryRowContext(ctx, fmt.Sprintf("SELECT %s FROM %s WHERE id = ?", strings.Join(cols, ","), table), entry_id)
 	values := make([]interface{}, len(cols))
 	for i := range values {
 		var value string
@@ -302,9 +302,9 @@ func (k *Keeper) GetData(ctx context.Context, user_id int, table string, id stri
 	return data, nil
 }
 
-func (k *Keeper) GetAllData(ctx context.Context, table string, columns ...string) ([]map[string]string, error) {
-
-	rows, err := k.db.QueryContext(ctx, fmt.Sprintf("SELECT %s FROM %s", strings.Join(columns, ","), table))
+func (k *Keeper) GetAllData(ctx context.Context, table string, user_id int, columns ...string) ([]map[string]string, error) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = ? AND deleted = false", strings.Join(columns, ","), table)
+	rows, err := k.db.QueryContext(ctx, query, user_id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
