@@ -78,7 +78,7 @@ func (s *Sync) AddData(user_id int, table string, data map[string]string) error 
 	return nil
 }
 
-func (s *Sync) UpdateData(user_id int, id int, table string, data map[string]string) error {
+func (s *Sync) UpdateData(user_id int, id string, table string, data map[string]string) error {
 	if !s.syncWithServer {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (s *Sync) UpdateData(user_id int, id int, table string, data map[string]str
 		return err
 	}
 
-	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/updateData/%s/%d/%d", s.serverURL, table, user_id, id), bytes.NewBuffer(body))
+	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/updateData/%s/%d/%s", s.serverURL, table, user_id, id), bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
