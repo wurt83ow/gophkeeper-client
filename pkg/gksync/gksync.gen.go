@@ -124,9 +124,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// PostAddDataTableUserIDWithBody request with any body
-	PostAddDataTableUserIDWithBody(ctx context.Context, table string, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostAddDataTableUserIDWithBody(ctx context.Context, table string, userID int, entryID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostAddDataTableUserID(ctx context.Context, table string, userID int, body PostAddDataTableUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostAddDataTableUserID(ctx context.Context, table string, userID int, entryID string, body PostAddDataTableUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteClearDataTableUserID request
 	DeleteClearDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -138,7 +138,7 @@ type ClientInterface interface {
 	GetGetAllDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetGetDataTableUserID request
-	GetGetDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetGetDataTableUserID(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetGetPasswordUsername request
 	GetGetPasswordUsername(ctx context.Context, username string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -165,8 +165,8 @@ type ClientInterface interface {
 	PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, id string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) PostAddDataTableUserIDWithBody(ctx context.Context, table string, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostAddDataTableUserIDRequestWithBody(c.Server, table, userID, contentType, body)
+func (c *Client) PostAddDataTableUserIDWithBody(ctx context.Context, table string, userID int, entryID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAddDataTableUserIDRequestWithBody(c.Server, table, userID, contentType, entryID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -177,8 +177,8 @@ func (c *Client) PostAddDataTableUserIDWithBody(ctx context.Context, table strin
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostAddDataTableUserID(ctx context.Context, table string, userID int, body PostAddDataTableUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostAddDataTableUserIDRequest(c.Server, table, userID, body)
+func (c *Client) PostAddDataTableUserID(ctx context.Context, table string, userID int, entryID string, body PostAddDataTableUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAddDataTableUserIDRequest(c.Server, table, userID, entryID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -235,9 +235,9 @@ func (c *Client) GetGetAllDataTableUserID(ctx context.Context, table string, use
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetGetDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetGetDataTableUserID(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
-	req, err := NewGetGetDataTableUserIDRequest(c.Server, table, userID)
+	req, err := NewGetGetDataTableUserIDRequest(c.Server, table, userID, entryID)
 	if err != nil {
 		return nil, err
 	}
@@ -354,8 +354,8 @@ func (c *Client) PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table s
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, id string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutUpdateDataTableUserIDIdRequest(c.Server, table, userID, id, body)
+func (c *Client) PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, entryID string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutUpdateDataTableUserIDIdRequest(c.Server, table, userID, entryID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -367,18 +367,18 @@ func (c *Client) PutUpdateDataTableUserIDId(ctx context.Context, table string, u
 }
 
 // NewPostAddDataTableUserIDRequest calls the generic PostAddDataTableUserID builder with application/json body
-func NewPostAddDataTableUserIDRequest(server string, table string, userID int, body PostAddDataTableUserIDJSONRequestBody) (*http.Request, error) {
+func NewPostAddDataTableUserIDRequest(server string, table string, userID int, entryID string, body PostAddDataTableUserIDJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPostAddDataTableUserIDRequestWithBody(server, table, userID, "application/json", bodyReader)
+	return NewPostAddDataTableUserIDRequestWithBody(server, table, userID, entryID, "application/json", bodyReader)
 }
 
 // NewPostAddDataTableUserIDRequestWithBody generates requests for PostAddDataTableUserID with any type of body
-func NewPostAddDataTableUserIDRequestWithBody(server string, table string, userID int, contentType string, body io.Reader) (*http.Request, error) {
+func NewPostAddDataTableUserIDRequestWithBody(server string, table string, userID int, entryID string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -395,12 +395,19 @@ func NewPostAddDataTableUserIDRequestWithBody(server string, table string, userI
 		return nil, err
 	}
 
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "entryID", runtime.ParamLocationPath, entryID)
+	if err != nil {
+		return nil, err
+	}
+
 	serverURL, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/addData/%s/%s", pathParam0, pathParam1)
+	operationPath := fmt.Sprintf("/addData/%s/%s/%s", pathParam0, pathParam1, pathParam2)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -551,7 +558,7 @@ func NewGetGetAllDataTableUserIDRequest(server string, table string, userID int)
 }
 
 // NewGetGetDataTableUserIDRequest generates requests for GetGetDataTableUserID
-func NewGetGetDataTableUserIDRequest(server string, table string, userID int) (*http.Request, error) {
+func NewGetGetDataTableUserIDRequest(server string, table string, userID int, entryID string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -568,12 +575,19 @@ func NewGetGetDataTableUserIDRequest(server string, table string, userID int) (*
 		return nil, err
 	}
 
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "entryID", runtime.ParamLocationPath, entryID)
+	if err != nil {
+		return nil, err
+	}
+
 	serverURL, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/getData/%s/%s", pathParam0, pathParam1)
+	operationPath := fmt.Sprintf("/getData/%s/%s/%s", pathParam0, pathParam1, pathParam2)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1161,16 +1175,16 @@ func (r PutUpdateDataTableUserIDIdResponse) StatusCode() int {
 }
 
 // PostAddDataTableUserIDWithBodyWithResponse request with arbitrary body returning *PostAddDataTableUserIDResponse
-func (c *ClientWithResponses) PostAddDataTableUserIDWithBodyWithResponse(ctx context.Context, table string, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAddDataTableUserIDResponse, error) {
-	rsp, err := c.PostAddDataTableUserIDWithBody(ctx, table, userID, contentType, body, reqEditors...)
+func (c *ClientWithResponses) PostAddDataTableUserIDWithBodyWithResponse(ctx context.Context, table string, userID int, entryID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAddDataTableUserIDResponse, error) {
+	rsp, err := c.PostAddDataTableUserIDWithBody(ctx, table, userID, entryID, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParsePostAddDataTableUserIDResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostAddDataTableUserIDWithResponse(ctx context.Context, table string, userID int, body PostAddDataTableUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAddDataTableUserIDResponse, error) {
-	rsp, err := c.PostAddDataTableUserID(ctx, table, userID, body, reqEditors...)
+func (c *ClientWithResponses) PostAddDataTableUserIDWithResponse(ctx context.Context, table string, userID int, entryID string, body PostAddDataTableUserIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAddDataTableUserIDResponse, error) {
+	rsp, err := c.PostAddDataTableUserID(ctx, table, userID, entryID, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1205,8 +1219,8 @@ func (c *ClientWithResponses) GetGetAllDataTableUserIDWithResponse(ctx context.C
 }
 
 // GetGetDataTableUserIDWithResponse request returning *GetGetDataTableUserIDResponse
-func (c *ClientWithResponses) GetGetDataTableUserIDWithResponse(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*GetGetDataTableUserIDResponse, error) {
-	rsp, err := c.GetGetDataTableUserID(ctx, table, userID, reqEditors...)
+func (c *ClientWithResponses) GetGetDataTableUserIDWithResponse(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*GetGetDataTableUserIDResponse, error) {
+	rsp, err := c.GetGetDataTableUserID(ctx, table, userID, entryID, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
