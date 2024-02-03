@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"github.com/wurt83ow/gophkeeper-client/pkg/bdkeeper"
 	"github.com/wurt83ow/gophkeeper-client/pkg/config"
 	"github.com/wurt83ow/gophkeeper-client/pkg/encription"
@@ -137,7 +138,7 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 	// Проходим по каждой таблице
 	for _, table := range tables {
 		// Получаем все данные из таблицы на сервере
-		data, err := s.sync.GetAllData(user_id, table)
+		data, err := s.sync.GetAllData(table, user_id)
 		if err != nil {
 			return fmt.Errorf("Ошибка при получении данных из таблицы %s: %v", table, err)
 		}
@@ -150,7 +151,12 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 
 		// Добавляем все полученные данные в локальную базу данных
 		for _, row := range data {
-			err = s.keeper.AddData(ctx, user_id, table, row)
+			entry_id, err := s.GenerateUUID(ctx)
+			if err != nil {
+				fmt.Println("Ошибка при генерации UUID:", err)
+				continue
+			}
+			err = s.keeper.AddData(ctx, table, user_id, entry_id, row)
 			if err != nil {
 				return fmt.Errorf("Ошибка при добавлении данных в таблицу %s: %v", table, err)
 			}
@@ -159,17 +165,22 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 
 	return nil
 }
-func (s *Service) InitSync(ctx context.Context, user_id int, table string, columns ...string) error {
+func (s *Service) InitSync(ctx context.Context, table string, user_id int, columns ...string) error {
 	if !s.syncWithServer {
 		return nil
 	}
 
-	data, err := s.sync.GetAllData(user_id, table)
+	data, err := s.sync.GetAllData(table, user_id)
 	if err != nil {
 		return err
 	}
 	for _, item := range data {
-		err = s.keeper.AddData(ctx, user_id, table, item)
+		entry_id, err := s.GenerateUUID(ctx)
+		if err != nil {
+			fmt.Println("Ошибка при генерации UUID:", err)
+			continue
+		}
+		err = s.keeper.AddData(ctx, table, user_id, entry_id, item)
 		if err != nil {
 			return err
 		}
@@ -210,13 +221,13 @@ func (s *Service) InitSync(ctx context.Context, user_id int, table string, colum
 
 //		return data, err
 //	}
-func (s *Service) GetData(ctx context.Context, user_id int, table string, id string) (map[string]string, error) {
+func (s *Service) GetData(ctx context.Context, table string, user_id int, entry_id string) (map[string]string, error) {
 	var data map[string]string
 	var err error
 
 	// Пытаемся синхронизировать данные
 	if s.syncWithServer {
-		resp, err := s.sync1.GetGetDataTableUserIDWithResponse(ctx, table, user_id)
+		resp, err := s.sync1.GetGetDataTableUserIDWithResponse(ctx, table, user_id, entry_id)
 		if err != nil && err != gksync.ErrNetworkUnavailable {
 			// Обработка ошибок HTTP и других ошибок, кроме недоступности сети
 			return nil, fmt.Errorf("unexpected error: %v", err)
@@ -227,7 +238,7 @@ func (s *Service) GetData(ctx context.Context, user_id int, table string, id str
 			serverData := *resp.JSON200 // предполагается, что resp.Body содержит данные
 
 			// Обновляем локальную базу данных новыми данными
-			err = s.keeper.UpdateData(ctx, user_id, id, table, serverData)
+			err = s.keeper.UpdateData(ctx, table, user_id, entry_id, serverData)
 			if err != nil {
 				return nil, err
 			}
@@ -236,7 +247,7 @@ func (s *Service) GetData(ctx context.Context, user_id int, table string, id str
 
 		} else if err == gksync.ErrNetworkUnavailable {
 			// Если сеть недоступна, помечаем данные для синхронизации
-			err = s.keeper.MarkForSync(ctx, user_id, table, data)
+			err = s.keeper.MarkForSync(ctx, table, user_id, entry_id, data)
 			if err != nil {
 				return nil, err
 			}
@@ -245,7 +256,7 @@ func (s *Service) GetData(ctx context.Context, user_id int, table string, id str
 
 	if data == nil {
 		// Если данные не были получены с сервера, получаем данные из keeper
-		data, err = s.keeper.GetData(ctx, user_id, table, id)
+		data, err = s.keeper.GetData(ctx, table, user_id, entry_id)
 		if err != nil {
 			return nil, err
 		}
@@ -263,7 +274,24 @@ func (s *Service) GetData(ctx context.Context, user_id int, table string, id str
 	return data, nil
 }
 
-func (s *Service) AddData(ctx context.Context, user_id int, table string, data map[string]string) error {
+func (s *Service) GenerateUUID(ctx context.Context) (string, error) {
+	// Генерируем UUID
+	uuid, err := uuid.NewRandom()
+	if err != nil {
+		return "", err
+	}
+
+	// Возвращаем UUID в виде строки
+	return uuid.String(), nil
+}
+
+func (s *Service) AddData(ctx context.Context, table string, user_id int, data map[string]string) error {
+
+	entry_id, err := s.GenerateUUID(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Шифрование каждого значения в данных перед их сохранением
 	encryptedData := make(map[string]string)
 	for key, value := range data {
@@ -274,21 +302,21 @@ func (s *Service) AddData(ctx context.Context, user_id int, table string, data m
 		encryptedData[key] = encryptedValue
 	}
 
-	err := s.keeper.AddData(ctx, user_id, table, encryptedData)
+	err = s.keeper.AddData(ctx, table, user_id, entry_id, encryptedData)
 	if err != nil {
 		return err
 	}
 	if s.syncWithServer {
-		_, err = s.sync1.PostAddDataTableUserID(ctx, table, user_id, encryptedData)
+		_, err = s.sync1.PostAddDataTableUserID(ctx, table, user_id, entry_id, encryptedData)
 		if err == gksync.ErrNetworkUnavailable {
-			err = s.keeper.MarkForSync(ctx, user_id, table, encryptedData)
+			err = s.keeper.MarkForSync(ctx, table, user_id, entry_id, encryptedData)
 		}
 	}
 
 	return err
 }
 
-func (s *Service) UpdateData(ctx context.Context, user_id int, id string, table string, data map[string]string) error {
+func (s *Service) UpdateData(ctx context.Context, table string, user_id int, entry_id string, data map[string]string) error {
 	// Шифрование каждого значения в данных перед их обновлением
 	encryptedData := make(map[string]string)
 	for key, value := range data {
@@ -299,41 +327,41 @@ func (s *Service) UpdateData(ctx context.Context, user_id int, id string, table 
 		encryptedData[key] = encryptedValue
 	}
 
-	err := s.keeper.UpdateData(ctx, user_id, id, table, encryptedData)
+	err := s.keeper.UpdateData(ctx, table, user_id, entry_id, encryptedData)
 	if err != nil {
 		return err
 	}
 	if s.syncWithServer {
-		err = s.sync.UpdateData(user_id, id, table, encryptedData)
+		err = s.sync.UpdateData(table, user_id, entry_id, encryptedData)
 		if err == gksync.ErrNetworkUnavailable {
-			err = s.keeper.MarkForSync(ctx, user_id, table, encryptedData)
+			err = s.keeper.MarkForSync(ctx, table, user_id, entry_id, encryptedData)
 		}
 	}
 
 	return err
 }
 
-func (s *Service) DeleteData(ctx context.Context, user_id int, table string, id string) error {
-	err := s.keeper.DeleteData(ctx, user_id, table, id)
+func (s *Service) DeleteData(ctx context.Context, table string, user_id int, entry_id string) error {
+	err := s.keeper.DeleteData(ctx, table, user_id, entry_id)
 	if err != nil {
 		return err
 	}
 	if s.syncWithServer {
-		err = s.sync.DeleteData(user_id, table, id)
+		err = s.sync.DeleteData(table, user_id, entry_id)
 		if err == gksync.ErrNetworkUnavailable {
-			data := map[string]string{"id": id}
-			err = s.keeper.MarkForSync(ctx, user_id, table, data)
+			data := map[string]string{"id": entry_id}
+			err = s.keeper.MarkForSync(ctx, table, user_id, entry_id, data)
 		}
 	}
 	return err
 }
 
-func (s *Service) GetAllData(ctx context.Context, user_id int, table string, columns ...string) ([]map[string]string, error) {
+func (s *Service) GetAllData(ctx context.Context, table string, user_id int, columns ...string) ([]map[string]string, error) {
 	var data []map[string]string
 	var err error
 
 	// Попытка получить данные из keeper
-	data, err = s.keeper.GetAllData(ctx, table, columns...)
+	data, err = s.keeper.GetAllData(ctx, table, user_id, columns...)
 	if err != nil && s.syncWithServer {
 		// Если данные не удалось получить из keeper, попытка получить данные из sync
 		data, err := s.sync1.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id)
@@ -346,7 +374,11 @@ func (s *Service) GetAllData(ctx context.Context, user_id int, table string, col
 
 			// Пометить все элементы данных для синхронизации
 			for _, item := range *data.JSON200 {
-				err = s.keeper.MarkForSync(ctx, user_id, table, item)
+				var entry_id string
+				if value, ok := item["id"]; ok {
+					entry_id = value
+				}
+				err = s.keeper.MarkForSync(ctx, table, user_id, entry_id, item)
 				if err != nil {
 					return nil, err // Возвращаем ошибку, если не удалось пометить элемент для синхронизации
 				}
@@ -370,15 +402,15 @@ func (s *Service) GetAllData(ctx context.Context, user_id int, table string, col
 	return data, nil // Возвращаем данные без ошибок
 }
 
-func (s *Service) ClearData(ctx context.Context, user_id int, table string) error {
+func (s *Service) ClearData(ctx context.Context, table string, user_id int) error {
 	err := s.keeper.ClearData(ctx, user_id, table)
 	if err != nil {
 		return err
 	}
 	if s.syncWithServer {
-		err = s.sync.ClearData(user_id, table)
+		err = s.sync.ClearData(table, user_id)
 		if err == gksync.ErrNetworkUnavailable {
-			err = s.keeper.MarkForSync(ctx, user_id, table, nil)
+			// err = s.keeper.MarkForSync(ctx, table, user_id, nil)
 		}
 	}
 	return err
