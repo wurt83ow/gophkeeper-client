@@ -23,7 +23,7 @@ func NewSync(serverURL string, syncWithServer bool) *Sync {
 	}
 }
 
-func (s *Sync) GetData(user_id int, table string, data map[string]string) error {
+func (s *Sync) GetData(table string, user_id int, data map[string]string) error {
 	if !s.syncWithServer {
 		return nil
 	}
@@ -61,7 +61,7 @@ func (s *Sync) GetData(user_id int, table string, data map[string]string) error 
 	return nil
 }
 
-func (s *Sync) AddData(user_id int, table string, data map[string]string) error {
+func (s *Sync) AddData(table string, user_id int, data map[string]string) error {
 	if !s.syncWithServer {
 		return nil
 	}
@@ -78,7 +78,7 @@ func (s *Sync) AddData(user_id int, table string, data map[string]string) error 
 	return nil
 }
 
-func (s *Sync) UpdateData(user_id int, id string, table string, data map[string]string) error {
+func (s *Sync) UpdateData(table string, user_id int, entry_id string, data map[string]string) error {
 	if !s.syncWithServer {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (s *Sync) UpdateData(user_id int, id string, table string, data map[string]
 		return err
 	}
 
-	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/updateData/%s/%d/%s", s.serverURL, table, user_id, id), bytes.NewBuffer(body))
+	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/updateData/%s/%d/%s", s.serverURL, table, user_id, entry_id), bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
@@ -100,11 +100,11 @@ func (s *Sync) UpdateData(user_id int, id string, table string, data map[string]
 	return nil
 }
 
-func (s *Sync) DeleteData(user_id int, table string, id string) error {
+func (s *Sync) DeleteData(table string, user_id int, entry_id string) error {
 	if !s.syncWithServer {
 		return nil
 	}
-	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/deleteData/%s/%d/%s", s.serverURL, table, user_id, id), nil)
+	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/deleteData/%s/%d/%s", s.serverURL, table, user_id, entry_id), nil)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (s *Sync) DeleteData(user_id int, table string, id string) error {
 	return nil
 }
 
-func (s *Sync) GetAllData(user_id int, table string) ([]map[string]string, error) {
+func (s *Sync) GetAllData(table string, user_id int) ([]map[string]string, error) {
 	if !s.syncWithServer {
 		return nil, nil
 	}
@@ -144,7 +144,7 @@ func (s *Sync) GetAllData(user_id int, table string) ([]map[string]string, error
 	return data, nil
 }
 
-func (s *Sync) ClearData(user_id int, table string) error {
+func (s *Sync) ClearData(table string, user_id int) error {
 	if !s.syncWithServer {
 		return nil
 	}
