@@ -21,7 +21,7 @@ func NewConfig() *Options {
 	maxFileSize := flag.Int("maxFileSize", 100*1024*1024, "maximum file size")
 	fileStoragePath := flag.String("fileStoragePath", "", "file storage path")
 	serverURL := flag.String("serverURL", "http://localhost:8080", "server URL")
-	syncWithServer := flag.Bool("syncWithServer", true, "synchronize with server")
+	syncWithServer := flag.Bool("syncWithServer", false, "synchronize with server")
 
 	flag.Parse()
 
