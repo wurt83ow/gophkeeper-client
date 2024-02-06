@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/wurt83ow/gophkeeper-client/pkg/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -132,15 +133,20 @@ func (k *Keeper) IsEmpty(ctx context.Context) (bool, error) {
 	return count == 0, nil
 }
 
-func (k *Keeper) MarkForSync(ctx context.Context, table string, user_id int, entry_id string, data map[string]string) error {
+func (k *Keeper) CreateSyncEntry(ctx context.Context, operation string, table string,
+	user_id int, entry_id string, data map[string]string) error {
 	// Преобразовать данные в JSON
 	dataJson, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
+	// Устанавливаем начальный статус "Pending"
+	status := "Pending"
+
 	// Добавить запись в таблицу SyncQueue
-	_, err = k.db.ExecContext(ctx, "INSERT INTO SyncQueue (user_id, entry_id, table_name, data) VALUES (?, ?, ?, ?)", user_id, entry_id, table, dataJson)
+	_, err = k.db.ExecContext(ctx, "INSERT INTO SyncQueue (operation, table_name, user_id, entry_id, data, status) VALUES (?, ?, ?, ?, ?, ?)",
+		operation, table, user_id, entry_id, dataJson, status)
 	return err
 }
 
@@ -337,11 +343,44 @@ func (k *Keeper) GetAllData(ctx context.Context, table string, user_id int, colu
 	return data, nil
 }
 
-func (k *Keeper) ClearData(ctx context.Context, userID int, table string) error {
+func (k *Keeper) ClearData(ctx context.Context, table string, userID int) error {
 	stmt, err := k.db.Prepare(fmt.Sprintf("DELETE FROM %s WHERE user_id = ?", table))
 	if err != nil {
 		return err
 	}
 	_, err = stmt.ExecContext(ctx, userID)
+	return err
+}
+
+// GetPendingSyncEntries возвращает все записи из таблицы синхронизации со статусом "Pending"
+func (k *Keeper) GetPendingSyncEntries(ctx context.Context) ([]models.SyncQueue, error) {
+	var entries []models.SyncQueue
+
+	rows, err := k.db.QueryContext(ctx, "SELECT * FROM SyncQueue WHERE status = 'Pending'")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var entry models.SyncQueue
+		err = rows.Scan(&entry.ID, &entry.TableName, &entry.UserID, &entry.EntryID, &entry.Operation, &entry.Data, &entry.Status)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return entries, nil
+}
+
+// UpdateSyncEntryStatus обновляет статус записи в таблице синхронизации
+func (k *Keeper) UpdateSyncEntryStatus(ctx context.Context, id int, status string) error {
+	_, err := k.db.ExecContext(ctx, "UPDATE SyncQueue SET status = ? WHERE id = ?", status, id)
 	return err
 }
