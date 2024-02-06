@@ -241,13 +241,22 @@ func (c *Client) login() {
 		c.ctx = appcontext.WithJWTToken(c.ctx, token)
 		fmt.Println("Вход в систему прошел успешно!")
 
-		// // Здесь начинается новая сессия
-		// if c.opt.SyncWithServer {
-		// 	err = c.service.SyncAllData(c.ctx, userID)
-		// 	if err != nil {
-		// 		fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
-		// 	}
-		// }
+		// Здесь начинается новая сессия
+		if c.opt.SyncWithServer {
+			// Извлеките данные сессии из файла
+			sessionUserID, _, _, err := c.loadSessionData()
+
+			//Если не удалось извлечь userID из файла сессии или извлеченный
+			//userID отличается от текущего, тогда загрузим все данные с сервера
+			if err != nil || c.userID != sessionUserID {
+				go func() {
+					err = c.service.SyncAllData(c.ctx, userID)
+					if err != nil {
+						fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
+					}
+				}()
+			}
+		}
 
 		encryptedUserID, err := c.enc.Encrypt(strconv.Itoa(c.userID))
 		if err != nil {
@@ -513,12 +522,8 @@ func (c *Client) addBinaryData() {
 		return
 	}
 
-	// Отправляем файл на сервер
-	err = c.service.SyncFile(c.userID, encryptedFilePath)
-	if err != nil {
-		fmt.Printf("Failed to sync file: %s\n", err)
-		return
-	}
+	// Отправляем файл на сервер в отдельной горутине
+	go c.service.SyncFile(c.userID, encryptedFilePath)
 
 	fmt.Printf("Title: %s, File: %s\n", title, inputPath)
 	fmt.Println("Data added successfully!")
