@@ -5,8 +5,7 @@ CREATE TABLE IF NOT EXISTS CreditCardData (
     card_number TEXT NOT NULL,
     expiration_date TEXT NOT NULL,
     cvv INTEGER NOT NULL,
-    meta_info TEXT,
-    deleted BOOLEAN DEFAULT FALSE,
+    meta_info TEXT,   
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES Users(id)
 );
