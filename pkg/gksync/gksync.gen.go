@@ -132,7 +132,7 @@ type ClientInterface interface {
 	DeleteClearDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteDeleteDataTableUserIDId request
-	DeleteDeleteDataTableUserIDId(ctx context.Context, table string, userID int, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteDeleteDataTableUserIDId(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetGetAllDataTableUserID request
 	GetGetAllDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -162,7 +162,7 @@ type ClientInterface interface {
 	// PutUpdateDataTableUserIDIdWithBody request with any body
 	PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table string, userID int, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, id string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, entryID string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PostAddDataTableUserIDWithBody(ctx context.Context, table string, userID int, entryID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -211,8 +211,8 @@ func (c *Client) DeleteClearDataTableUserID(ctx context.Context, table string, u
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteDeleteDataTableUserIDId(ctx context.Context, table string, userID int, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteDeleteDataTableUserIDIdRequest(c.Server, table, userID, id)
+func (c *Client) DeleteDeleteDataTableUserIDId(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteDeleteDataTableUserIDIdRequest(c.Server, table, userID, entryID)
 	if err != nil {
 		return nil, err
 	}
@@ -342,8 +342,8 @@ func (c *Client) PostSendFileUserIDWithBody(ctx context.Context, userID int, con
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table string, userID int, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutUpdateDataTableUserIDIdRequestWithBody(c.Server, table, userID, id, contentType, body)
+func (c *Client) PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table string, userID int, entryID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutUpdateDataTableUserIDIdRequestWithBody(c.Server, table, userID, entryID, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -469,7 +469,7 @@ func NewDeleteClearDataTableUserIDRequest(server string, table string, userID in
 }
 
 // NewDeleteDeleteDataTableUserIDIdRequest generates requests for DeleteDeleteDataTableUserIDId
-func NewDeleteDeleteDataTableUserIDIdRequest(server string, table string, userID int, id string) (*http.Request, error) {
+func NewDeleteDeleteDataTableUserIDIdRequest(server string, table string, userID int, entryID string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -488,7 +488,7 @@ func NewDeleteDeleteDataTableUserIDIdRequest(server string, table string, userID
 
 	var pathParam2 string
 
-	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "entryID", runtime.ParamLocationPath, entryID)
 	if err != nil {
 		return nil, err
 	}
@@ -801,7 +801,7 @@ func NewPutUpdateDataTableUserIDIdRequest(server string, table string, userID in
 }
 
 // NewPutUpdateDataTableUserIDIdRequestWithBody generates requests for PutUpdateDataTableUserIDId with any type of body
-func NewPutUpdateDataTableUserIDIdRequestWithBody(server string, table string, userID int, id string, contentType string, body io.Reader) (*http.Request, error) {
+func NewPutUpdateDataTableUserIDIdRequestWithBody(server string, table string, userID int, entryID string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -820,7 +820,7 @@ func NewPutUpdateDataTableUserIDIdRequestWithBody(server string, table string, u
 
 	var pathParam2 string
 
-	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "entryID", runtime.ParamLocationPath, entryID)
 	if err != nil {
 		return nil, err
 	}
@@ -902,7 +902,7 @@ type ClientWithResponsesInterface interface {
 	DeleteClearDataTableUserIDWithResponse(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*DeleteClearDataTableUserIDResponse, error)
 
 	// DeleteDeleteDataTableUserIDIdWithResponse request
-	DeleteDeleteDataTableUserIDIdWithResponse(ctx context.Context, table string, userID int, id string, reqEditors ...RequestEditorFn) (*DeleteDeleteDataTableUserIDIdResponse, error)
+	DeleteDeleteDataTableUserIDIdWithResponse(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*DeleteDeleteDataTableUserIDIdResponse, error)
 
 	// GetGetAllDataTableUserIDWithResponse request
 	GetGetAllDataTableUserIDWithResponse(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*GetGetAllDataTableUserIDResponse, error)
@@ -1201,8 +1201,8 @@ func (c *ClientWithResponses) DeleteClearDataTableUserIDWithResponse(ctx context
 }
 
 // DeleteDeleteDataTableUserIDIdWithResponse request returning *DeleteDeleteDataTableUserIDIdResponse
-func (c *ClientWithResponses) DeleteDeleteDataTableUserIDIdWithResponse(ctx context.Context, table string, userID int, id string, reqEditors ...RequestEditorFn) (*DeleteDeleteDataTableUserIDIdResponse, error) {
-	rsp, err := c.DeleteDeleteDataTableUserIDId(ctx, table, userID, id, reqEditors...)
+func (c *ClientWithResponses) DeleteDeleteDataTableUserIDIdWithResponse(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*DeleteDeleteDataTableUserIDIdResponse, error) {
+	rsp, err := c.DeleteDeleteDataTableUserIDId(ctx, table, userID, entryID, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
