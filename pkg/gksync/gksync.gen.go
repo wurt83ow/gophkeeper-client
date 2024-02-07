@@ -163,6 +163,9 @@ type ClientInterface interface {
 	PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table string, userID int, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PutUpdateDataTableUserIDId(ctx context.Context, table string, userID int, entryID string, body PutUpdateDataTableUserIDIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	GetFile(ctx context.Context, userID int, fileDataID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	NewGetFileRequest(ctx context.Context, server string, userID int, fileDataID string) (*http.Request, error)
 }
 
 func (c *Client) PostAddDataTableUserIDWithBody(ctx context.Context, table string, userID int, entryID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -171,6 +174,12 @@ func (c *Client) PostAddDataTableUserIDWithBody(ctx context.Context, table strin
 		return nil, err
 	}
 	req = req.WithContext(ctx)
+
+	err = c.addTokenToHeader(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
@@ -183,16 +192,6 @@ func (c *Client) PostAddDataTableUserID(ctx context.Context, table string, userI
 		return nil, err
 	}
 	req = req.WithContext(ctx)
-
-	// Извлеките JWT-токен из контекста
-	token, ok := appcontext.GetJWTToken(ctx)
-	if !ok {
-		return nil, fmt.Errorf("не удалось получить JWT-токен из контекста")
-	}
-
-	// Добавьте JWT-токен в заголовок Authorization
-	req.Header.Add("Authorization", token)
-
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
@@ -217,6 +216,11 @@ func (c *Client) DeleteDeleteDataTableUserIDId(ctx context.Context, table string
 		return nil, err
 	}
 	req = req.WithContext(ctx)
+	err = c.addTokenToHeader(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
@@ -243,14 +247,10 @@ func (c *Client) GetGetDataTableUserID(ctx context.Context, table string, userID
 	}
 	req = req.WithContext(ctx)
 
-	// Извлеките JWT-токен из контекста
-	token, ok := appcontext.GetJWTToken(ctx)
-	if !ok {
-		return nil, fmt.Errorf("не удалось получить JWT-токен из контекста")
+	err = c.addTokenToHeader(ctx, req)
+	if err != nil {
+		return nil, err
 	}
-
-	// Добавьте JWT-токен в заголовок Authorization
-	req.Header.Add("Authorization", token)
 
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
@@ -348,6 +348,11 @@ func (c *Client) PutUpdateDataTableUserIDIdWithBody(ctx context.Context, table s
 		return nil, err
 	}
 	req = req.WithContext(ctx)
+	err = c.addTokenToHeader(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
@@ -1532,4 +1537,46 @@ func ParsePutUpdateDataTableUserIDIdResponse(rsp *http.Response) (*PutUpdateData
 	}
 
 	return response, nil
+}
+
+// addTokenToHeader добавляет JWT-токен в заголовок запроса
+func (c *Client) addTokenToHeader(ctx context.Context, req *http.Request) error {
+	// Извлеките JWT-токен из контекста
+	token, ok := appcontext.GetJWTToken(ctx)
+	if !ok {
+		return fmt.Errorf("не удалось получить JWT-токен из контекста")
+	}
+
+	// Добавьте JWT-токен в заголовок Authorization
+	req.Header.Add("Authorization", token)
+
+	return nil
+}
+
+// GetFile создает новый HTTP-запрос для получения файла
+func (c *Client) GetFile(ctx context.Context, userID int, fileDataID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := c.NewGetFileRequest(ctx, c.Server, userID, fileDataID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewGetFileRequest создает новый HTTP-запрос для получения файла
+func (c *Client) NewGetFileRequest(ctx context.Context, server string, userID int, fileDataID string) (*http.Request, error) {
+	// Создаем URL для запроса
+	url := fmt.Sprintf("%s/files/%d/%s", server, userID, fileDataID)
+
+	// Создаем новый HTTP-запрос
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Возвращаем созданный запрос
+	return req, nil
 }
