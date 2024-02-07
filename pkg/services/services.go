@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -120,12 +122,21 @@ func (s *Service) Login(ctx context.Context, username string, password string) (
 	return userID, token, nil
 }
 
-func (s *Service) SyncFile(userID int, filePath string) {
+func (s *Service) SyncFile(ctx context.Context, userID int, filePath string) {
 	if !s.syncWithServer {
 		return
 	}
+
+	// Открываем файл
+	file, err := os.Open(filePath)
+	if err != nil {
+		s.logger.Printf("Ошибка при открытии файла: %v", err)
+		return
+	}
+	defer file.Close()
+
 	// Отправляем данные на сервер
-	err := s.sync.SendFile(userID, filePath)
+	_, err = s.sync1.PostSendFileUserIDWithBody(ctx, userID, "application/octet-stream", file)
 	if err != nil {
 		s.logger.Printf("Ошибка при отправке файла на сервер: %v", err)
 	}
@@ -142,7 +153,7 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 	// Проходим по каждой таблице
 	for _, table := range tables {
 		// Получаем все данные из таблицы на сервере
-		data, err := s.sync.GetAllData(table, user_id)
+		resp, err := s.sync1.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id)
 		if err != nil {
 			s.logger.Printf("Ошибка при получении данных из таблицы %s: %v", table, err)
 		}
@@ -154,7 +165,7 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 		}
 
 		// Добавляем все полученные данные в локальную базу данных
-		for _, row := range data {
+		for _, row := range *resp.JSON200 {
 			err = s.keeper.AddData(ctx, table, user_id, row["entry_id"], row)
 			if err != nil {
 				s.logger.Printf("Ошибка при добавлении данных в таблицу %s: %v", table, err)
@@ -339,6 +350,40 @@ func (s *Service) GetAllData(ctx context.Context, table string, user_id int, col
 	}
 
 	return data, nil // Возвращаем данные без ошибок
+}
+
+func (s *Service) RetrieveFile(ctx context.Context, user_id int, entry_id string, filePath string) {
+
+	// Получаем данные с сервера
+	resp, err := s.sync1.GetFile(ctx, user_id, entry_id)
+	if err != nil {
+		s.logger.Printf("Ошибка при получении файла с сервера: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Проверяем статус ответа
+	if resp.StatusCode != http.StatusOK {
+		s.logger.Printf("Сервер вернул неожиданный статус: %v", resp.Status)
+		return
+	}
+
+	// Создаем файл для сохранения данных
+	out, err := os.Create(filePath)
+	if err != nil {
+		s.logger.Printf("Ошибка при создании файла: %v", err)
+		return
+	}
+	defer out.Close()
+
+	// Копируем данные из ответа в файл
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		s.logger.Printf("Ошибка при сохранении файла: %v", err)
+		return
+	}
+
+	s.logger.Printf("Файл успешно получен и сохранен!")
 }
 
 func (s *Service) ClearLocalData(ctx context.Context, table string, user_id int) error {
