@@ -353,6 +353,7 @@ func getStringFromSlice(data []map[string]string, index int) (map[string]string,
 	}
 	return data[index], nil
 }
+
 func (c *Client) getBinaryDataAndSave(tableName string) {
 
 	data, _ := c.service.GetAllData(c.ctx, tableName, c.userID, "id", "meta_info")
@@ -384,22 +385,30 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 		}
 
 		// Предложение ввести путь для сохранения
-		c.rl.SetPrompt("Enter the path to save the file: ")
-		outputPath, _ := c.rl.Readline()
+		c.rl.SetPrompt("Enter the file name to save the file: ")
+		outputFileName, _ := c.rl.Readline()
+
+		// Если в имени файла нет расширения, добавляем его из записи БД
+		if filepath.Ext(outputFileName) == "" && newdata["extension"] != "" {
+			outputFileName += "." + newdata["extension"]
+		}
 
 		// Получение пути к файлу из данных
 		fileName := newdata["path"]
 		inputPath := filepath.Join(c.opt.FileStoragePath, fileName)
 
+		// Проверим существует ли файл, если нет, то получим его с сервера
+		if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+			c.service.RetrieveFile(c.ctx, c.userID, newdata["id"], inputPath)
+		}
 		// Расшифровка файла
-		err = c.enc.DecryptFile(inputPath, outputPath)
+		err = c.enc.DecryptFile(inputPath, outputFileName)
 		if err != nil {
 			fmt.Println("Failed to decrypt file:", err)
 			return
 		}
 
 		fmt.Println("File decrypted and saved successfully!")
-
 	}
 }
 
@@ -511,10 +520,14 @@ func (c *Client) addBinaryData() {
 		return
 	}
 
+	// Получаем расширение файла
+	extension := filepath.Ext(inputPath)
+
 	// Добавляем метаданные файла в сервис
 	fileData := map[string]string{
 		"path":      fmt.Sprintf("%x", hash), // Сохраняем хеш вместо пути к файлу
 		"meta_info": title,
+		"extension": extension, // Сохраняем расширение файла
 	}
 	err = c.service.AddData(c.ctx, "FilesData", c.userID, fileData)
 	if err != nil {
@@ -523,7 +536,7 @@ func (c *Client) addBinaryData() {
 	}
 
 	// Отправляем файл на сервер в отдельной горутине
-	go c.service.SyncFile(c.userID, encryptedFilePath)
+	go c.service.SyncFile(c.ctx, c.userID, encryptedFilePath)
 
 	fmt.Printf("Title: %s, File: %s\n", title, inputPath)
 	fmt.Println("Data added successfully!")
