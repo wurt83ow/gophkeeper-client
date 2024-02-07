@@ -19,9 +19,9 @@ import (
 )
 
 type Service struct {
-	keeper         *bdkeeper.Keeper
-	sync           *gksync.Sync
-	sync1          *gksync.ClientWithResponses
+	keeper *bdkeeper.Keeper
+
+	sync           *gksync.ClientWithResponses
 	enc            *encription.Enc
 	opt            *config.Options
 	syncWithServer bool
@@ -32,12 +32,12 @@ type Logger interface {
 	Printf(format string, v ...interface{})
 }
 
-func NewServices(keeper *bdkeeper.Keeper, sync *gksync.Sync, sync1 *gksync.ClientWithResponses,
+func NewServices(keeper *bdkeeper.Keeper, sync *gksync.ClientWithResponses,
 	enc *encription.Enc, opt *config.Options, syncWithServer bool, logger Logger) *Service {
 	return &Service{
-		keeper:         keeper,
+		keeper: keeper,
+
 		sync:           sync,
-		sync1:          sync1,
 		enc:            enc,
 		opt:            opt,
 		syncWithServer: syncWithServer,
@@ -67,7 +67,7 @@ func (s *Service) Register(ctx context.Context, username string, password string
 			Username: username,
 			Password: hashedPassword,
 		}
-		_, err = s.sync1.PostRegister(ctx, body)
+		_, err = s.sync.PostRegister(ctx, body)
 		if err != nil {
 			return err
 		}
@@ -105,7 +105,7 @@ func (s *Service) Login(ctx context.Context, username string, password string) (
 			Username: username,
 			Password: hashedPassword,
 		}
-		resp, err := s.sync1.PostLoginWithResponse(ctx, body)
+		resp, err := s.sync.PostLoginWithResponse(ctx, body)
 		if err != nil {
 			return 0, "", err
 		}
@@ -114,8 +114,8 @@ func (s *Service) Login(ctx context.Context, username string, password string) (
 			return 0, "", fmt.Errorf("Unauthorized")
 		}
 
-		userID = resp.JSON200.UserID
-		token = string(resp.JSON200.Token)
+		userID = *resp.JSON200.UserID
+		token = string(*resp.JSON200.Token)
 	} else {
 		// Если syncWithServer=false, получаем только userID из keeper
 		userID, err = s.keeper.GetUserID(ctx, username)
@@ -142,7 +142,7 @@ func (s *Service) SyncFile(ctx context.Context, userID int, filePath string) {
 	defer file.Close()
 
 	// Отправляем данные на сервер
-	_, err = s.sync1.PostSendFileUserIDWithBody(ctx, userID, "application/octet-stream", file)
+	_, err = s.sync.PostSendFileUserIDWithBody(ctx, userID, "application/octet-stream", file)
 	if err != nil {
 		s.logger.Printf("Ошибка при отправке файла на сервер: %v", err)
 	}
@@ -159,7 +159,7 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 	// Проходим по каждой таблице
 	for _, table := range tables {
 		// Получаем все данные из таблицы на сервере
-		resp, err := s.sync1.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id)
+		resp, err := s.sync.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id)
 		if err != nil {
 			s.logger.Printf("Ошибка при получении данных из таблицы %s: %v", table, err)
 		}
@@ -237,13 +237,13 @@ func (s *Service) syncData(ctx context.Context, entry models.SyncQueue) error {
 	bodyReader := bytes.NewReader([]byte(entry.Data))
 	switch entry.Operation {
 	case "Create":
-		_, err := s.sync1.PostAddDataTableUserIDWithBody(ctx, entry.TableName, entry.UserID, entry.EntryID, "application/json", bodyReader)
+		_, err := s.sync.PostAddDataTableUserIDEntryIDWithBody(ctx, entry.TableName, entry.UserID, entry.EntryID, "application/json", bodyReader)
 		return err
 	case "Update":
-		_, err := s.sync1.PutUpdateDataTableUserIDIdWithBody(ctx, entry.TableName, entry.UserID, entry.EntryID, "application/json", bodyReader)
+		_, err := s.sync.PutUpdateDataTableUserIDEntryIDWithBody(ctx, entry.TableName, entry.UserID, entry.EntryID, "application/json", bodyReader)
 		return err
 	case "Delete":
-		_, err := s.sync1.DeleteDeleteDataTableUserIDId(ctx, entry.TableName, entry.UserID, entry.EntryID)
+		_, err := s.sync.DeleteDeleteDataTableUserIDEntryID(ctx, entry.TableName, entry.UserID, entry.EntryID)
 		return err
 	}
 	return nil
@@ -343,7 +343,7 @@ func (s *Service) GetAllData(ctx context.Context, table string, user_id int, col
 	if err != nil {
 		return nil, err
 	}
-	// data, err := s.sync1.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id)
+	// data, err := s.sync.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id)
 
 	// Расшифровка данных перед возвратом
 	for i, item := range data {
@@ -364,7 +364,7 @@ func (s *Service) GetAllData(ctx context.Context, table string, user_id int, col
 func (s *Service) RetrieveFile(ctx context.Context, user_id int, entry_id string, filePath string) {
 
 	// Получаем данные с сервера
-	resp, err := s.sync1.GetFile(ctx, user_id, entry_id)
+	resp, err := s.sync.GetGetFileUserIDEntryID(ctx, user_id, entry_id)
 	if err != nil {
 		s.logger.Printf("Ошибка при получении файла с сервера: %v", err)
 		return

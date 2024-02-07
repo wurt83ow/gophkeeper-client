@@ -4,8 +4,8 @@ go 1.21.1
 
 require (
 	github.com/chzyer/readline v1.5.1
-	github.com/google/uuid v1.5.0
-	github.com/mattn/go-sqlite3 v1.14.20
+	github.com/google/uuid v1.6.0
+	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/crypto v0.18.0
