@@ -50,7 +50,7 @@ paths:
       responses:
         '200':
           description: File uploaded successfully
-  /getData/{table}/{userID}/{entryID}:
+  /getData/{table}/{userID}:
     get:
       parameters:
         - name: table
@@ -59,11 +59,6 @@ paths:
           schema:
             type: string
         - name: userID
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: entryID
           in: path
           required: true
           schema:
@@ -77,7 +72,7 @@ paths:
                 type: object
                 additionalProperties:
                   type: string
-  /addData/{table}/{userID}/{entryID}:
+  /addData/{table}/{userID}:
     post:
       parameters:
         - name: table
@@ -86,11 +81,6 @@ paths:
           schema:
             type: string
         - name: userID
-          in: path
-          required: true
-          schema:
-            type: integer
-        - name: entryID
           in: path
           required: true
           schema:
@@ -105,7 +95,7 @@ paths:
       responses:
         '200':
           description: Data added successfully
-  /updateData/{table}/{userID}/{entryID}:
+  /updateData/{table}/{userID}/{id}:
     put:
       parameters:
         - name: table
@@ -118,7 +108,7 @@ paths:
           required: true
           schema:
             type: integer
-        - name: entryID
+        - name: id
           in: path
           required: true
           schema:
@@ -133,7 +123,7 @@ paths:
       responses:
         '200':
           description: Data updated successfully
-  /deleteData/{table}/{userID}/{entryID}:
+  /deleteData/{table}/{userID}/{id}:
     delete:
       parameters:
         - name: table
@@ -146,11 +136,11 @@ paths:
           required: true
           schema:
             type: integer
-        - name: entryID
+        - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         '200':
           description: Data deleted successfully

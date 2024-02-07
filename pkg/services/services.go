@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -59,13 +60,7 @@ func (s *Service) Register(ctx context.Context, username string, password string
 	if err != nil {
 		return err
 	}
-
-	// Сохранение нового пользователя в базе данных
-	err = s.keeper.AddUser(ctx, username, hashedPassword)
-	if err != nil {
-		return err
-	}
-
+	fmt.Println("hashedPassword777register      ", hashedPassword)
 	// Сохранение нового пользователя на сервере
 	if s.syncWithServer {
 		body := gksync.PostRegisterJSONRequestBody{
@@ -76,6 +71,12 @@ func (s *Service) Register(ctx context.Context, username string, password string
 		if err != nil {
 			return err
 		}
+	}
+
+	// Сохранение нового пользователя в базе данных
+	err = s.keeper.AddUser(ctx, username, hashedPassword)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -96,6 +97,7 @@ func (s *Service) Login(ctx context.Context, username string, password string) (
 	if !s.enc.CompareHashAndPassword(hashedPassword, password) {
 		return 0, "", errors.New("Invalid password")
 	}
+	fmt.Println("hashedPassword777login      ", hashedPassword)
 
 	if s.syncWithServer {
 		// Если syncWithServer=true, получаем userID и jwtToken с сервера
@@ -106,6 +108,10 @@ func (s *Service) Login(ctx context.Context, username string, password string) (
 		resp, err := s.sync1.PostLoginWithResponse(ctx, body)
 		if err != nil {
 			return 0, "", err
+		}
+		// Проверяем, равен ли resp nil
+		if resp.JSON200 == nil {
+			return 0, "", fmt.Errorf("Unauthorized")
 		}
 
 		userID = resp.JSON200.UserID
@@ -177,9 +183,11 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 }
 
 func (s *Service) SyncAllWithServer(ctx context.Context) {
+	fmt.Println("888888888888888888888888888888888888888888888888")
 	// Получаем все записи из таблицы синхронизации со статусом "В ожидании"
 	entries, err := s.keeper.GetPendingSyncEntries(ctx)
 	if err != nil {
+		fmt.Println("errerrerrerrerrerrerrerrerrerrerrerrerrerrerrerrerr", err)
 		return
 	}
 
@@ -225,6 +233,7 @@ func (s *Service) handleSyncError(ctx context.Context, err error, entry models.S
 
 // syncData синхронизирует данные с сервером
 func (s *Service) syncData(ctx context.Context, entry models.SyncQueue) error {
+	fmt.Println("9999999999999999999999999999999999999999999999999999")
 	bodyReader := bytes.NewReader([]byte(entry.Data))
 	switch entry.Operation {
 	case "Create":
@@ -256,7 +265,7 @@ func (s *Service) AddData(ctx context.Context, table string, user_id int, data m
 		}
 		encryptedData[key] = encryptedValue
 	}
-
+	fmt.Println("222222222222222222222222222222222222222222222222222222222", table, user_id)
 	err = s.keeper.AddData(ctx, table, user_id, entry_id, encryptedData)
 
 	if s.syncWithServer && err == nil {

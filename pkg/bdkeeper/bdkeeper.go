@@ -197,7 +197,7 @@ func (k *Keeper) AddData(ctx context.Context, table string, user_id int, entry_i
 	values := make([]interface{}, 0, len(data)+2) // +2 для user_id и entry_id
 
 	// Добавьте user_id и entry_id в начало списков ключей и значений
-	keys = append(keys, "user_id", "entry_id")
+	keys = append(keys, "user_id", "id")
 	values = append(values, user_id, entry_id)
 
 	for key, value := range data {
@@ -206,9 +206,11 @@ func (k *Keeper) AddData(ctx context.Context, table string, user_id int, entry_i
 	}
 	stmt, err := k.db.Prepare(fmt.Sprintf("INSERT INTO %s(%s) values(%s)", table, strings.Join(keys, ","), strings.Repeat("?,", len(keys)-1)+"?"))
 	if err != nil {
+		fmt.Println("444444444444444444444444444444444444444444444444444444444", err)
 		return err
 	}
 	_, err = stmt.ExecContext(ctx, values...)
+
 	return err
 }
 

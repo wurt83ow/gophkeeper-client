@@ -169,6 +169,7 @@ type ClientInterface interface {
 }
 
 func (c *Client) PostAddDataTableUserIDWithBody(ctx context.Context, table string, userID int, entryID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
 	req, err := NewPostAddDataTableUserIDRequestWithBody(c.Server, table, userID, contentType, entryID, body)
 	if err != nil {
 		return nil, err
