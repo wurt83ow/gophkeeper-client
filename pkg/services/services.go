@@ -279,7 +279,6 @@ func (s *Service) AddData(ctx context.Context, table string, user_id int, data m
 }
 
 func (s *Service) GetData(ctx context.Context, table string, user_id int, entry_id string) (map[string]string, error) {
-
 	// Получаем данные из keeper
 	data, err := s.keeper.GetData(ctx, table, user_id, entry_id)
 	if err != nil {
@@ -340,6 +339,7 @@ func (s *Service) GetAllData(ctx context.Context, table string, user_id int, col
 
 	// Попытка получить данные из keeper
 	data, err := s.keeper.GetAllData(ctx, table, user_id, columns...)
+
 	if err != nil {
 		return nil, err
 	}
