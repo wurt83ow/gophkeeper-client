@@ -311,7 +311,9 @@ func (k *Keeper) GetData(ctx context.Context, table string, user_id int, entry_i
 }
 
 func (k *Keeper) GetAllData(ctx context.Context, table string, user_id int, columns ...string) ([]map[string]string, error) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = ? AND deleted = false", strings.Join(columns, ","), table)
+
+	fmt.Println("sfdlsjdflkjsdlkfjlskdjflkjsdlkfjs", table, user_id)
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = ?", strings.Join(columns, ","), table)
 	rows, err := k.db.QueryContext(ctx, query, user_id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
