@@ -160,7 +160,7 @@ type ClientInterface interface {
 	PostRegister(ctx context.Context, body PostRegisterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostSendFileUserIDWithBody request with any body
-	PostSendFileUserIDWithBody(ctx context.Context, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostSendFileUserIDWithBody(ctx context.Context, userID int, fileName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutUpdateDataTableUserIDEntryIDWithBody request with any body
 	PutUpdateDataTableUserIDEntryIDWithBody(ctx context.Context, table string, userID int, entryID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -185,6 +185,7 @@ func (c *Client) PostAddDataTableUserIDEntryIDWithBody(ctx context.Context, tabl
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
+
 	return c.Client.Do(req)
 }
 
@@ -332,12 +333,19 @@ func (c *Client) PostRegister(ctx context.Context, body PostRegisterJSONRequestB
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostSendFileUserIDWithBody(ctx context.Context, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostSendFileUserIDRequestWithBody(c.Server, userID, contentType, body)
+func (c *Client) PostSendFileUserIDWithBody(ctx context.Context, userID int, fileName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostSendFileUserIDRequestWithBody(c.Server, userID, fileName, contentType, body)
 	if err != nil {
 		return nil, err
 	}
 	req = req.WithContext(ctx)
+	// +++
+	err = c.addTokenToHeader(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	// ---
+
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
@@ -762,12 +770,18 @@ func NewPostRegisterRequestWithBody(server string, contentType string, body io.R
 }
 
 // NewPostSendFileUserIDRequestWithBody generates requests for PostSendFileUserID with any type of body
-func NewPostSendFileUserIDRequestWithBody(server string, userID int, contentType string, body io.Reader) (*http.Request, error) {
+func NewPostSendFileUserIDRequestWithBody(server string, userID int, fileName string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
+	var pathParam1 string
 
 	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "userID", runtime.ParamLocationPath, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "fileName", runtime.ParamLocationPath, fileName)
 	if err != nil {
 		return nil, err
 	}
@@ -777,7 +791,7 @@ func NewPostSendFileUserIDRequestWithBody(server string, userID int, contentType
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/sendFile/%s", pathParam0)
+	operationPath := fmt.Sprintf("/sendFile/%s/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -935,7 +949,7 @@ type ClientWithResponsesInterface interface {
 	PostRegisterWithResponse(ctx context.Context, body PostRegisterJSONRequestBody, reqEditors ...RequestEditorFn) (*PostRegisterResponse, error)
 
 	// PostSendFileUserIDWithBodyWithResponse request with any body
-	PostSendFileUserIDWithBodyWithResponse(ctx context.Context, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSendFileUserIDResponse, error)
+	PostSendFileUserIDWithBodyWithResponse(ctx context.Context, userID int, fileName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSendFileUserIDResponse, error)
 
 	// PutUpdateDataTableUserIDEntryIDWithBodyWithResponse request with any body
 	PutUpdateDataTableUserIDEntryIDWithBodyWithResponse(ctx context.Context, table string, userID int, entryID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutUpdateDataTableUserIDEntryIDResponse, error)
@@ -1288,8 +1302,8 @@ func (c *ClientWithResponses) PostRegisterWithResponse(ctx context.Context, body
 }
 
 // PostSendFileUserIDWithBodyWithResponse request with arbitrary body returning *PostSendFileUserIDResponse
-func (c *ClientWithResponses) PostSendFileUserIDWithBodyWithResponse(ctx context.Context, userID int, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSendFileUserIDResponse, error) {
-	rsp, err := c.PostSendFileUserIDWithBody(ctx, userID, contentType, body, reqEditors...)
+func (c *ClientWithResponses) PostSendFileUserIDWithBodyWithResponse(ctx context.Context, userID int, fileName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSendFileUserIDResponse, error) {
+	rsp, err := c.PostSendFileUserIDWithBody(ctx, userID, fileName, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

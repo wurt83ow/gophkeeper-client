@@ -60,7 +60,7 @@ func (s *Service) Register(ctx context.Context, username string, password string
 	if err != nil {
 		return err
 	}
-	fmt.Println("hashedPassword777register      ", hashedPassword)
+
 	// Сохранение нового пользователя на сервере
 	if s.syncWithServer {
 		body := gksync.PostRegisterJSONRequestBody{
@@ -97,7 +97,6 @@ func (s *Service) Login(ctx context.Context, username string, password string) (
 	if !s.enc.CompareHashAndPassword(hashedPassword, password) {
 		return 0, "", errors.New("Invalid password")
 	}
-	fmt.Println("hashedPassword777login      ", hashedPassword)
 
 	if s.syncWithServer {
 		// Если syncWithServer=true, получаем userID и jwtToken с сервера
@@ -128,7 +127,7 @@ func (s *Service) Login(ctx context.Context, username string, password string) (
 	return userID, token, nil
 }
 
-func (s *Service) SyncFile(ctx context.Context, userID int, filePath string) {
+func (s *Service) SyncFile(ctx context.Context, userID int, filePath string, fileName string) {
 	if !s.syncWithServer {
 		return
 	}
@@ -142,7 +141,7 @@ func (s *Service) SyncFile(ctx context.Context, userID int, filePath string) {
 	defer file.Close()
 
 	// Отправляем данные на сервер
-	_, err = s.sync.PostSendFileUserIDWithBody(ctx, userID, "application/octet-stream", file)
+	_, err = s.sync.PostSendFileUserIDWithBody(ctx, userID, fileName, "application/octet-stream", file)
 	if err != nil {
 		s.logger.Printf("Ошибка при отправке файла на сервер: %v", err)
 	}
@@ -183,11 +182,11 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 }
 
 func (s *Service) SyncAllWithServer(ctx context.Context) {
-	fmt.Println("888888888888888888888888888888888888888888888888")
+
 	// Получаем все записи из таблицы синхронизации со статусом "В ожидании"
 	entries, err := s.keeper.GetPendingSyncEntries(ctx)
+
 	if err != nil {
-		fmt.Println("errerrerrerrerrerrerrerrerrerrerrerrerrerrerrerrerr", err)
 		return
 	}
 
@@ -209,6 +208,7 @@ func (s *Service) SyncAllWithServer(ctx context.Context) {
 
 // handleSyncError обрабатывает ошибки, возникающие при синхронизации данных с сервером
 func (s *Service) handleSyncError(ctx context.Context, err error, entry models.SyncQueue) {
+
 	// Логирование ошибки
 	s.logger.Printf("Ошибка при синхронизации данных: %s\n", err)
 
@@ -233,11 +233,12 @@ func (s *Service) handleSyncError(ctx context.Context, err error, entry models.S
 
 // syncData синхронизирует данные с сервером
 func (s *Service) syncData(ctx context.Context, entry models.SyncQueue) error {
-	fmt.Println("9999999999999999999999999999999999999999999999999999")
+
 	bodyReader := bytes.NewReader([]byte(entry.Data))
 	switch entry.Operation {
 	case "Create":
 		_, err := s.sync.PostAddDataTableUserIDEntryIDWithBody(ctx, entry.TableName, entry.UserID, entry.EntryID, "application/json", bodyReader)
+
 		return err
 	case "Update":
 		_, err := s.sync.PutUpdateDataTableUserIDEntryIDWithBody(ctx, entry.TableName, entry.UserID, entry.EntryID, "application/json", bodyReader)
@@ -246,6 +247,7 @@ func (s *Service) syncData(ctx context.Context, entry models.SyncQueue) error {
 		_, err := s.sync.DeleteDeleteDataTableUserIDEntryID(ctx, entry.TableName, entry.UserID, entry.EntryID)
 		return err
 	}
+
 	return nil
 }
 
@@ -265,7 +267,7 @@ func (s *Service) AddData(ctx context.Context, table string, user_id int, data m
 		}
 		encryptedData[key] = encryptedValue
 	}
-	fmt.Println("222222222222222222222222222222222222222222222222222222222", table, user_id)
+
 	err = s.keeper.AddData(ctx, table, user_id, entry_id, encryptedData)
 
 	if s.syncWithServer && err == nil {
@@ -361,10 +363,10 @@ func (s *Service) GetAllData(ctx context.Context, table string, user_id int, col
 	return data, nil // Возвращаем данные без ошибок
 }
 
-func (s *Service) RetrieveFile(ctx context.Context, user_id int, entry_id string, filePath string) {
+func (s *Service) RetrieveFile(ctx context.Context, user_id int, fileName string, inputPath string) {
 
 	// Получаем данные с сервера
-	resp, err := s.sync.GetGetFileUserIDEntryID(ctx, user_id, entry_id)
+	resp, err := s.sync.GetGetFileUserIDEntryID(ctx, user_id, fileName)
 	if err != nil {
 		s.logger.Printf("Ошибка при получении файла с сервера: %v", err)
 		return
@@ -376,9 +378,9 @@ func (s *Service) RetrieveFile(ctx context.Context, user_id int, entry_id string
 		s.logger.Printf("Сервер вернул неожиданный статус: %v", resp.Status)
 		return
 	}
-
+	fmt.Println("2222222222222222222222222222222222222222222222222222222", inputPath)
 	// Создаем файл для сохранения данных
-	out, err := os.Create(filePath)
+	out, err := os.Create(inputPath)
 	if err != nil {
 		s.logger.Printf("Ошибка при создании файла: %v", err)
 		return

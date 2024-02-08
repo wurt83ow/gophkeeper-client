@@ -400,7 +400,7 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 
 		// Проверим существует ли файл, если нет, то получим его с сервера
 		if _, err := os.Stat(inputPath); os.IsNotExist(err) {
-			c.service.RetrieveFile(c.ctx, c.userID, newdata["id"], inputPath)
+			c.service.RetrieveFile(c.ctx, c.userID, fileName, inputPath)
 		}
 		// Расшифровка файла
 		err = c.enc.DecryptFile(inputPath, outputFileName)
@@ -410,6 +410,15 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 		}
 
 		fmt.Println("File decrypted and saved successfully!")
+	}
+	for {
+		c.rl.SetPrompt("Do you want to continue geting files? (yes/no): ")
+		choice, _ := c.rl.Readline()
+		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
+			break
+		}
+
+		c.getBinaryDataAndSave("FilesData")
 	}
 }
 
@@ -537,10 +546,20 @@ func (c *Client) addBinaryData() {
 	}
 
 	// Отправляем файл на сервер в отдельной горутине
-	go c.service.SyncFile(c.ctx, c.userID, encryptedFilePath)
+	go c.service.SyncFile(c.ctx, c.userID, encryptedFilePath, fmt.Sprintf("%x", hash))
 
 	fmt.Printf("Title: %s, File: %s\n", title, inputPath)
 	fmt.Println("Data added successfully!")
+
+	for {
+		c.rl.SetPrompt("Do you want to continue adding files? (yes/no): ")
+		choice, _ := c.rl.Readline()
+		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
+			break
+		}
+
+		c.addBinaryData()
+	}
 }
 
 func (c *Client) addBankCardData() {
@@ -810,8 +829,7 @@ func getRowFromUserInput(data []map[string]string, rl *readline.Instance) (map[s
 		return nil, fmt.Errorf("Ошибка при преобразовании номера строки в целое число: %w", err)
 	}
 	row, err := getStringFromSlice(data, num-1)
-	fmt.Println("sfdljlskdjflskdjflksjdlfkjslkdfjlkasjfddddddddddd", data)
-	fmt.Println("sfdljlskdjflskdjflksjdlfkjslkdfjlkasjfddddddddddd", num)
+
 	if err != nil {
 		return nil, fmt.Errorf("Ошибка при получении строки по её номеру: %w", err)
 	}

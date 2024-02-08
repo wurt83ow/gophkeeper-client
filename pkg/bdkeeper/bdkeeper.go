@@ -206,7 +206,6 @@ func (k *Keeper) AddData(ctx context.Context, table string, user_id int, entry_i
 	}
 	stmt, err := k.db.Prepare(fmt.Sprintf("INSERT INTO %s(%s) values(%s)", table, strings.Join(keys, ","), strings.Repeat("?,", len(keys)-1)+"?"))
 	if err != nil {
-		fmt.Println("444444444444444444444444444444444444444444444444444444444", err)
 		return err
 	}
 	_, err = stmt.ExecContext(ctx, values...)
@@ -312,7 +311,6 @@ func (k *Keeper) GetData(ctx context.Context, table string, user_id int, entry_i
 
 func (k *Keeper) GetAllData(ctx context.Context, table string, user_id int, columns ...string) ([]map[string]string, error) {
 
-	fmt.Println("sfdlsjdflkjsdlkfjlskdjflkjsdlkfjs", table, user_id)
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = ?", strings.Join(columns, ","), table)
 	rows, err := k.db.QueryContext(ctx, query, user_id)
 	if err != nil {
@@ -359,8 +357,8 @@ func (k *Keeper) ClearData(ctx context.Context, table string, userID int) error 
 // GetPendingSyncEntries возвращает все записи из таблицы синхронизации со статусом "Pending"
 func (k *Keeper) GetPendingSyncEntries(ctx context.Context) ([]models.SyncQueue, error) {
 	var entries []models.SyncQueue
-
 	rows, err := k.db.QueryContext(ctx, "SELECT * FROM SyncQueue WHERE status = 'Pending'")
+
 	if err != nil {
 		return nil, err
 	}

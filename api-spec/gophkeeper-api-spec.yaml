@@ -41,6 +41,11 @@ paths:
           required: true
           schema:
             type: integer
+        - name: fileName
+          in: query
+          required: true
+          schema:
+            type: string
       requestBody:
         content:
           application/octet-stream:
