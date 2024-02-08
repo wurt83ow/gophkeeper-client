@@ -1,14 +1,80 @@
-2024/02/08 16:00:35 Сервер вернул неожиданный статус: 404 Not Found
-2024/02/08 16:03:11 Сервер вернул неожиданный статус: 404 Not Found
-2024/02/08 16:04:20 Сервер вернул неожиданный статус: 404 Not Found
-2024/02/08 16:05:11 Сервер вернул неожиданный статус: 404 Not Found
-2024/02/08 16:06:04 Сервер вернул неожиданный статус: 501 Not Implemented
-2024/02/08 16:08:31 Сервер вернул неожиданный статус: 501 Not Implemented
-2024/02/08 16:15:15 Сервер вернул неожиданный статус: 404 Not Found
-2024/02/08 16:16:02 Сервер вернул неожиданный статус: 404 Not Found
-2024/02/08 16:16:30 Сервер вернул неожиданный статус: 404 Not Found
-2024/02/08 16:19:04 Сервер вернул неожиданный статус: 404 Not Found
-2024/02/08 16:20:16 Файл успешно получен и сохранен!
-2024/02/08 16:24:48 Файл успешно получен и сохранен!
-2024/02/08 16:26:13 Файл успешно получен и сохранен!
-2024/02/08 16:29:40 Файл успешно получен и сохранен!
+2024/02/08 19:36:13 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:36:13 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:36:13 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:36:13 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:36:13 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:36:13 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:41:10 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:41:10 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:41:10 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:41:10 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:41:10 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:41:10 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:42:19 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:42:19 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:42:19 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:42:19 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:42:19 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:42:19 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:46:07 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:46:07 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:46:07 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:46:07 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:46:07 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:46:07 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:48:28 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:48:28 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:48:28 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:48:28 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:48:28 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:48:28 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:50:02 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:50:02 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:50:02 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:50:02 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:50:02 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:50:02 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:52:56 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:52:56 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:52:56 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:52:56 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:52:56 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:52:56 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:54:12 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:54:12 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:54:12 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:54:12 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:54:12 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:54:12 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:55:16 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:55:16 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:55:16 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:55:16 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:55:16 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:55:16 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:56:29 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:56:29 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:56:29 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:56:29 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:56:29 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:56:29 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:57:36 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:57:36 Ошибка при добавлении данных в таблицу UserCredentials: NOT NULL constraint failed: UserCredentials.login
+2024/02/08 19:57:36 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:57:36 Ошибка при добавлении данных в таблицу TextData: NOT NULL constraint failed: TextData.data
+2024/02/08 19:57:36 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 19:57:36 Ошибка при добавлении данных в таблицу FilesData: NOT NULL constraint failed: FilesData.path
+2024/02/08 20:01:03 Ошибка при добавлении данных в таблицу UserCredentials: UNIQUE constraint failed: UserCredentials.id
+2024/02/08 20:01:03 Ошибка при добавлении данных в таблицу TextData: UNIQUE constraint failed: TextData.id
+2024/02/08 20:01:03 Ошибка при добавлении данных в таблицу FilesData: UNIQUE constraint failed: FilesData.id
+2024/02/08 20:03:42 Ошибка при добавлении данных в таблицу UserCredentials: UNIQUE constraint failed: UserCredentials.id
+2024/02/08 20:03:42 Ошибка при добавлении данных в таблицу TextData: UNIQUE constraint failed: TextData.id
+2024/02/08 20:03:42 Ошибка при добавлении данных в таблицу FilesData: UNIQUE constraint failed: FilesData.id
+2024/02/08 20:06:34 Ошибка при добавлении данных в таблицу UserCredentials: UNIQUE constraint failed: UserCredentials.id
+2024/02/08 20:06:34 Ошибка при добавлении данных в таблицу TextData: UNIQUE constraint failed: TextData.id
+2024/02/08 20:06:34 Ошибка при добавлении данных в таблицу FilesData: UNIQUE constraint failed: FilesData.id
+2024/02/08 20:09:11 Ошибка при добавлении данных в таблицу UserCredentials: UNIQUE constraint failed: UserCredentials.id
+2024/02/08 20:09:11 Ошибка при добавлении данных в таблицу TextData: UNIQUE constraint failed: TextData.id
+2024/02/08 20:09:11 Ошибка при добавлении данных в таблицу FilesData: UNIQUE constraint failed: FilesData.id
+2024/02/08 20:13:26 Файл успешно получен и сохранен!
+2024/02/08 20:13:40 Файл успешно получен и сохранен!

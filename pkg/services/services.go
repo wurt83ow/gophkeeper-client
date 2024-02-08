@@ -3,6 +3,7 @@ package services
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -55,6 +56,17 @@ func (s *Service) Register(ctx context.Context, username string, password string
 		return errors.New("User already exists")
 	}
 
+	if resp, err := s.sync.GetGetUserIDUsername(ctx, username); err == nil {
+		body, err := io.ReadAll(resp.Body)
+		if err == nil {
+			var userID int
+			err = json.Unmarshal(body, &userID)
+			if err == nil && userID != 0 {
+				return errors.New("User already exists")
+			}
+		}
+	}
+
 	// Хеширование пароля
 	hashedPassword, err := s.enc.HashPassword(password)
 	if err != nil {
@@ -90,12 +102,13 @@ func (s *Service) Login(ctx context.Context, username string, password string) (
 	// Попытка получить хешированный пароль пользователя из локальной базы данных
 	hashedPassword, err := s.keeper.GetPassword(ctx, username)
 	if err != nil {
-		return 0, "", err
-	}
-
-	// Сравнение хешированного пароля с хешем введенного пароля
-	if !s.enc.CompareHashAndPassword(hashedPassword, password) {
-		return 0, "", errors.New("Invalid password")
+		// Если возникла ошибка, используем исходный пароль
+		hashedPassword = password
+	} else {
+		// Сравнение хешированного пароля с хешем введенного пароля
+		if !s.enc.CompareHashAndPassword(hashedPassword, password) {
+			return 0, "", errors.New("Invalid password")
+		}
 	}
 
 	if s.syncWithServer {
@@ -168,10 +181,9 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 		if err != nil {
 			s.logger.Printf("Ошибка при очистке таблицы %s: %v", table, err)
 		}
-
 		// Добавляем все полученные данные в локальную базу данных
 		for _, row := range *resp.JSON200 {
-			err = s.keeper.AddData(ctx, table, user_id, row["entry_id"], row)
+			err = s.keeper.AddData(ctx, table, user_id, row["id"], row)
 			if err != nil {
 				s.logger.Printf("Ошибка при добавлении данных в таблицу %s: %v", table, err)
 			}
@@ -378,7 +390,7 @@ func (s *Service) RetrieveFile(ctx context.Context, user_id int, fileName string
 		s.logger.Printf("Сервер вернул неожиданный статус: %v", resp.Status)
 		return
 	}
-	fmt.Println("2222222222222222222222222222222222222222222222222222222", inputPath)
+
 	// Создаем файл для сохранения данных
 	out, err := os.Create(inputPath)
 	if err != nil {

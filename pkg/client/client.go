@@ -160,7 +160,6 @@ func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 }
 
 func (c *Client) getData() {
-	fmt.Println("Get data:")
 	if c.userID == 0 {
 		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
 		return
@@ -249,12 +248,10 @@ func (c *Client) login() {
 			//Если не удалось извлечь userID из файла сессии или извлеченный
 			//userID отличается от текущего, тогда загрузим все данные с сервера
 			if err != nil || c.userID != sessionUserID {
-				go func() {
-					err = c.service.SyncAllData(c.ctx, userID)
-					if err != nil {
-						fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
-					}
-				}()
+				err = c.service.SyncAllData(c.ctx, userID)
+				if err != nil {
+					fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
+				}
 			}
 		}
 
