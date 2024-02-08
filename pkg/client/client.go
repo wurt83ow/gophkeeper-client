@@ -316,6 +316,7 @@ func (c *Client) list() {
 func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[string]string)) {
 	for {
 		data, _ := c.service.GetAllData(c.ctx, tableName, c.userID, "id", "meta_info")
+
 		if len(data) == 0 {
 			fmt.Println("No entries found in the table:", tableName)
 			return
@@ -808,7 +809,9 @@ func getRowFromUserInput(data []map[string]string, rl *readline.Instance) (map[s
 	if err != nil {
 		return nil, fmt.Errorf("Ошибка при преобразовании номера строки в целое число: %w", err)
 	}
-	row, err := getStringFromSlice(data, num)
+	row, err := getStringFromSlice(data, num-1)
+	fmt.Println("sfdljlskdjflskdjflksjdlfkjslkdfjlkasjfddddddddddd", data)
+	fmt.Println("sfdljlskdjflskdjflksjdlfkjslkdfjlkasjfddddddddddd", num)
 	if err != nil {
 		return nil, fmt.Errorf("Ошибка при получении строки по её номеру: %w", err)
 	}
