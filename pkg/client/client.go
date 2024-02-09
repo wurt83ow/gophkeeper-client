@@ -1,3 +1,4 @@
+// Package client provides functionalities to interact with GophKeeper, a secure password manager.
 package client
 
 import (
@@ -20,19 +21,22 @@ import (
 	"github.com/wurt83ow/gophkeeper-client/pkg/services"
 )
 
+// ActionFunc represents a function that performs an action.
 type ActionFunc func()
-type Client struct {
-	rl      *readline.Instance
-	service *services.Service
-	enc     *encription.Enc
-	opt     *config.Options
-	ctx     context.Context
 
-	userID       int // добавляем поле для хранения идентификатора текущего пользователя
-	token        string
-	sessionStart time.Time
+// Client represents a GophKeeper client.
+type Client struct {
+	rl           *readline.Instance // Readline instance for user input
+	service      *services.Service  // Service for backend operations
+	enc          *encription.Enc    // Encryption utility
+	opt          *config.Options    // Options for client configuration
+	ctx          context.Context    // Context for client operations
+	userID       int                // User ID of the current user
+	token        string             // Authentication token for the current session
+	sessionStart time.Time          // Start time of the current session
 }
 
+// NewClient initializes a new GophKeeper client.
 func NewClient(ctx context.Context, service *services.Service, enc *encription.Enc,
 	opt *config.Options, userID int, token string, sessionStart time.Time) *Client {
 	rl, err := readline.New("> ")
@@ -42,13 +46,17 @@ func NewClient(ctx context.Context, service *services.Service, enc *encription.E
 	return &Client{rl: rl, ctx: ctx, service: service, enc: enc,
 		opt: opt, userID: userID, token: token, sessionStart: sessionStart}
 }
+
+// Start starts the GophKeeper client.
 func (c *Client) Start() {
+	// Root command for Cobra CLI
 	rootCmd := &cobra.Command{
 		Use:           "gophkeeper",
 		Short:         "GophKeeper is a secure password manager",
-		SilenceErrors: true, // Предотвращаем вывод ошибок Cobra
+		SilenceErrors: true, // Prevent Cobra from printing errors
 	}
 
+	// Map of command names to their corresponding functions
 	commands := map[string]func(){
 		"register": c.register,
 		"login":    c.login,
@@ -61,23 +69,26 @@ func (c *Client) Start() {
 		"get":  c.getData,
 	}
 
+	// Set JWT token in the context
 	c.ctx = appcontext.WithJWTToken(c.ctx, c.token)
-	// Если прошло слишком много времени, попросите пользователя войти в систему снова
+
+	// If session has expired, prompt the user to log in again
 	if time.Since(c.sessionStart) > c.opt.SessionDuration {
-		fmt.Println("Ваш сеанс истек. Пожалуйста, войдите снова.")
+		fmt.Println("Your session has expired. Please log in again.")
 		c.ClearSession()
 	}
 
+	// Add commands to the root command
 	for use, runFunc := range commands {
-		localRunFunc := runFunc // Создаем локальную переменную
+		localRunFunc := runFunc // Create a local variable
 		command := &cobra.Command{
 			Use:   use,
 			Short: use,
 			Run: func(cmd *cobra.Command, args []string) {
-				localRunFunc() // Используем локальную переменную
+				localRunFunc() // Use the local variable
 			},
 		}
-		// Добавляем алиасы для команд 'ls' и 'rm'
+		// Add aliases for commands 'ls' and 'rm'
 		if use == "ls" {
 			command.Aliases = []string{"list"}
 		} else if use == "rm" {
@@ -86,23 +97,26 @@ func (c *Client) Start() {
 		rootCmd.AddCommand(command)
 	}
 
+	// Execute the root command
 	err := rootCmd.Execute()
 	if err != nil {
 		if strings.Contains(err.Error(), "unknown command") {
-			fmt.Println("Такой команды не существует. Вот список доступных команд:")
+			fmt.Println("Command not found. Here is the list of available commands:")
 			for cmd := range commands {
 				fmt.Println("-", cmd)
 			}
 		} else {
-			fmt.Println("Произошла ошибка:", err)
+			fmt.Println("Error:", err)
 		}
 	}
 }
 
+// Close closes the GophKeeper client.
 func (c *Client) Close() {
 	c.rl.Close()
 }
 
+// chooseAction prompts the user to choose an action and executes the corresponding function.
 func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 	printMenu()
 	line, _ := c.rl.Readline()
@@ -120,14 +134,16 @@ func (c *Client) chooseAction(func1, func2, func3, func4 ActionFunc) {
 	}
 }
 
+// getData prompts the user to choose the type of data to retrieve.
 func (c *Client) getData() {
 	if c.userID == 0 {
-		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		fmt.Println("Please log in or register.")
 		return
 	}
 	c.chooseAction(c.getLoginPassword, c.getTextData, c.getBinaryData, c.getBankCardData)
 }
 
+// printMenu prints the menu for data type selection.
 func printMenu() {
 	fmt.Println("Choose data type:")
 	fmt.Println("1. Login/Password")
@@ -135,6 +151,8 @@ func printMenu() {
 	fmt.Println("3. Binary data")
 	fmt.Println("4. Bank card data")
 }
+
+// getTableNameByChoice returns the table name based on the user's choice.
 func getTableNameByChoice(choice string) (string, bool) {
 	switch choice {
 	case "1":
@@ -150,39 +168,44 @@ func getTableNameByChoice(choice string) (string, bool) {
 	}
 }
 
+// addData prompts the user to choose the type of data to add.
 func (c *Client) addData() {
 	if c.userID == 0 {
-		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		fmt.Println("Please log in or register.")
 		return
 	}
 	c.chooseAction(c.addLoginPassword, c.addTextData, c.addBinaryData, c.addBankCardData)
 }
+
+// editData prompts the user to choose the type of data to edit.
 func (c *Client) editData() {
 	if c.userID == 0 {
-		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		fmt.Println("Please log in or register.")
 		return
 	}
 	c.chooseAction(c.editLoginPassword, c.editTextData, c.editBinaryData, c.editBankCardData)
 }
 
-// Реализация функции регистрации
+// register implements the registration function.
 func (c *Client) register() {
-	c.rl.SetPrompt("Введите имя пользователя: ")
+	c.rl.SetPrompt("Enter username: ")
 	username, _ := c.rl.Readline()
 
-	c.rl.SetPrompt("Введите пароль: ")
+	c.rl.SetPrompt("Enter password: ")
 	c.rl.Config.EnableMask = true
 	password, _ := c.rl.Readline()
 	c.rl.Config.EnableMask = false
-	// Вызовите функцию регистрации в вашем сервисе
+
+	// Call the registration function in the service
 	err := c.service.Register(c.ctx, username, password)
 	if err != nil {
-		fmt.Printf("Ошибка при регистрации: %s\n", err)
+		fmt.Printf("Registration failed: %s\n", err)
 	} else {
-		fmt.Println("Регистрация прошла успешно!")
+		fmt.Println("Registration successful!")
 	}
 }
 
+// login prompts the user to enter their username and password, attempts to log them into the system, and initializes a new session if successful.
 func (c *Client) login() {
 	c.rl.SetPrompt("Введите имя пользователя: ")
 	username, _ := c.rl.Readline()
@@ -192,7 +215,7 @@ func (c *Client) login() {
 	password, _ := c.rl.Readline()
 	c.rl.Config.EnableMask = false
 
-	// Вызовите функцию входа в систему в вашем сервисе
+	// Call the login function in your service
 	userID, token, err := c.service.Login(c.ctx, username, password)
 	if err != nil {
 		fmt.Printf("Ошибка при входе в систему: %s\n", err)
@@ -201,15 +224,15 @@ func (c *Client) login() {
 		c.ctx = appcontext.WithJWTToken(c.ctx, token)
 		fmt.Println("Вход в систему прошел успешно!")
 
-		// Здесь начинается новая сессия
+		// A new session starts here
 		if c.opt.SyncWithServer {
-			// Извлеките данные сессии из файла
+			// Extract session data from the file
 			sessionUserID, _, _, err := c.opt.LoadSessionData()
 
-			//Если не удалось извлечь userID из файла сессии или извлеченный
-			//userID отличается от текущего, тогда загрузим все данные с сервера
+			// If unable to extract userID from the session file or the extracted
+			// userID differs from the current one, then load all data from the server
 			if err != nil || c.userID != sessionUserID {
-				err = c.service.SyncAllData(c.ctx, userID, false)
+				err = c.service.SyncAllData(c.ctx, userID, false) // update=false
 				if err != nil {
 					fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
 				}
@@ -222,10 +245,10 @@ func (c *Client) login() {
 			return
 		}
 
-		// Получите текущее время и преобразуйте его в строку
+		// Get the current time and convert it to a string
 		c.sessionStart = time.Now()
 
-		// Запишите userID, token и время начала сеанса в файл
+		// Write userID, token, and session start time to the file
 		err = c.saveSessionData(encryptedUserID, token, c.sessionStart.Format(time.RFC3339))
 		if err != nil {
 			fmt.Printf("Ошибка при записи userID в файл: %s\n", err)
@@ -234,26 +257,28 @@ func (c *Client) login() {
 	}
 }
 
+// saveSessionData saves session data (userID, token, session start time) to a file.
 func (c *Client) saveSessionData(userID, token, sessionStart string) error {
-	// Запишите userID, token и время начала сеанса в файл
 	err := os.WriteFile("session.dat", []byte(userID+"\n"+token+"\n"+sessionStart), 0600)
 	return err
 }
 
-// Метод Logout в модуле client
+// Logout terminates the current session by clearing session data.
 func (c *Client) Logout() {
 	c.ClearSession()
 }
 
+// ClearSession clears the current session by resetting user ID and context, and removing session data file.
 func (c *Client) ClearSession() {
 	c.userID = 0
-	c.ctx = context.Background() // Создаем новый контекст
+	c.ctx = context.Background() // Create a new context
 	os.Remove("session.dat")
 }
 
+// list displays a list of entries of a specified data type for the current user.
 func (c *Client) list() {
 	if c.userID == 0 {
-		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		fmt.Println("Please log in or register.")
 		return
 	}
 	printMenu()
@@ -271,6 +296,7 @@ func (c *Client) list() {
 	c.printAllData(data)
 }
 
+// getDataAndPrint retrieves and prints data entries of a specified data type for the current user.
 func (c *Client) getDataAndPrint(tableName string, printFunc func(data map[string]string)) {
 	for {
 		data, _ := c.service.GetAllData(c.ctx, tableName, c.userID, "id", "meta_info")
@@ -313,8 +339,8 @@ func getStringFromSlice(data []map[string]string, index int) (map[string]string,
 	return data[index], nil
 }
 
+// getBinaryDataAndSave retrieves binary data entries of a specified data type for the current user and saves them as files.
 func (c *Client) getBinaryDataAndSave(tableName string) {
-
 	data, _ := c.service.GetAllData(c.ctx, tableName, c.userID, "id", "meta_info")
 	if len(data) == 0 {
 		fmt.Println("No entries found in the table:", tableName)
@@ -335,7 +361,7 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 		c.printData(newdata)
 		fmt.Println("Data retrieved successfully!")
 
-		// Предложение сохранить файл
+		// Prompt to save the file
 		c.rl.SetPrompt("Do you want to save the file? (yes/no): ")
 		choice, _ := c.rl.Readline()
 
@@ -343,24 +369,24 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 			return
 		}
 
-		// Предложение ввести путь для сохранения
+		// Prompt for the path to save the file
 		c.rl.SetPrompt("Enter the file name to save the file: ")
 		outputFileName, _ := c.rl.Readline()
 
-		// Если в имени файла нет расширения, добавляем его из записи БД
+		// If the file name has no extension, add it from the database record
 		if filepath.Ext(outputFileName) == "" && newdata["extension"] != "" {
 			outputFileName += "." + newdata["extension"]
 		}
 
-		// Получение пути к файлу из данных
+		// Get the file path from the data
 		fileName := newdata["path"]
 		inputPath := filepath.Join(c.opt.FileStoragePath, fileName)
 
-		// Проверим существует ли файл, если нет, то получим его с сервера
+		// Check if the file exists, if not, retrieve it from the server
 		if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 			c.service.RetrieveFile(c.ctx, c.userID, fileName, inputPath)
 		}
-		// Расшифровка файла
+		// Decrypt the file
 		err = c.enc.DecryptFile(inputPath, outputFileName)
 		if err != nil {
 			fmt.Println("Failed to decrypt file:", err)
@@ -370,7 +396,7 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 		fmt.Println("File decrypted and saved successfully!")
 	}
 	for {
-		c.rl.SetPrompt("Do you want to continue geting files? (yes/no): ")
+		c.rl.SetPrompt("Do you want to continue getting files? (yes/no): ")
 		choice, _ := c.rl.Readline()
 		if strings.ToLower(choice) != "yes" && strings.ToLower(choice) != "y" {
 			break
@@ -380,6 +406,7 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 	}
 }
 
+// printAllData prints all entries in a given data set.
 func (c *Client) printAllData(data []map[string]string) {
 	fmt.Println(data)
 	for i, entry := range data {
@@ -387,28 +414,36 @@ func (c *Client) printAllData(data []map[string]string) {
 	}
 }
 
+// printData prints the given data to the standard output.
 func (c *Client) printData(data map[string]string) {
 	for key, value := range data {
 		fmt.Printf("%s: %s\n", key, value)
 	}
 }
 
+// getLoginPassword fetches and prints user login credentials.
 func (c *Client) getLoginPassword() {
 	c.getDataAndPrint("UserCredentials", c.printData)
 }
 
+// getTextData fetches and prints text data.
 func (c *Client) getTextData() {
 	c.getDataAndPrint("TextData", c.printData)
 }
 
+// getBinaryData fetches binary data.
 func (c *Client) getBinaryData() {
 	c.getBinaryDataAndSave("FilesData")
 }
 
+// getBankCardData fetches and prints bank card data.
 func (c *Client) getBankCardData() {
 	c.getDataAndPrint("CreditCardData", c.printData)
 }
 
+// addDataRepeatedly adds data repeatedly until the user decides to stop.
+// It prompts the user to add data of a specified type, then adds it to the service,
+// and prints the added data. It continues prompting the user until they choose to stop.
 func (c *Client) addDataRepeatedly(dataType string, dataFunc func() map[string]string, printFunc func(data map[string]string)) {
 	for {
 		data := dataFunc()
@@ -427,6 +462,7 @@ func (c *Client) addDataRepeatedly(dataType string, dataFunc func() map[string]s
 	}
 }
 
+// addLoginPassword prompts the user to add login credentials repeatedly.
 func (c *Client) addLoginPassword() {
 	c.addDataRepeatedly("UserCredentials", func() map[string]string {
 		c.rl.SetPrompt("Choose a title (meta-information): ")
@@ -447,6 +483,7 @@ func (c *Client) addLoginPassword() {
 	})
 }
 
+// addTextData prompts the user to add text data repeatedly.
 func (c *Client) addTextData() {
 	c.addDataRepeatedly("TextData", func() map[string]string {
 		c.rl.SetPrompt("Choose a title (meta-information): ")
@@ -462,40 +499,45 @@ func (c *Client) addTextData() {
 	})
 }
 
+// addBinaryData adds binary data.
+// It prompts the user to choose a title and specify the file path.
+// Then, it checks if the file exists and if its size is within the allowed limit.
+// If the file is valid, it encrypts the file, retrieves its extension, and adds metadata to the file service.
+// Finally, it sends the encrypted file to the server in a separate goroutine.
 func (c *Client) addBinaryData() {
 	c.rl.SetPrompt("Choose a title (meta-information): ")
 	title, _ := c.rl.Readline()
 	c.rl.SetPrompt("Specify the file path: ")
 	inputPath, _ := c.rl.Readline()
 
-	// Проверяем, существует ли файл
+	// Check if the file exists
 	info, err := os.Stat(inputPath)
 	if os.IsNotExist(err) {
 		fmt.Println("File not found!")
 		return
 	}
 
-	// Проверяем размер файла
+	// Check the file size
 	if info.Size() > int64(c.opt.MaxFileSize) {
 		fmt.Println("File is too large!")
 		return
 	}
 
-	// Читаем и шифруем файл по частям. Сохраняем зашифрованные данные в файловой системе
+	// Read and encrypt the file in parts. Save the encrypted data to the file system.
 	encryptedFilePath, hash, err := c.enc.EncryptFile(inputPath, c.opt.FileStoragePath)
 	if err != nil {
 		fmt.Printf("Failed to encrypt or write file: %s\n", err)
 		return
 	}
 
-	// Получаем расширение файла
+	// Get the file extension
 	extension := filepath.Ext(inputPath)
 
-	// Добавляем метаданные файла в сервис
+	// Add file metadata to the service
 	fileData := map[string]string{
-		"path":      fmt.Sprintf("%x", hash), // Сохраняем хеш вместо пути к файлу
+		"path":      fmt.Sprintf("%x", hash), // Save the hash instead of the file path
 		"meta_info": title,
-		"extension": extension, // Сохраняем расширение файла
+		"extension": extension, // Save the file extension
 	}
 	err = c.service.AddData(c.ctx, "FilesData", c.userID, fileData)
 	if err != nil {
@@ -503,7 +545,7 @@ func (c *Client) addBinaryData() {
 		return
 	}
 
-	// Отправляем файл на сервер в отдельной горутине
+	// Send the file to the server in a separate goroutine
 	go c.service.SyncFile(c.ctx, c.userID, encryptedFilePath, fmt.Sprintf("%x", hash))
 
 	fmt.Printf("Title: %s, File: %s\n", title, inputPath)
@@ -520,6 +562,7 @@ func (c *Client) addBinaryData() {
 	}
 }
 
+// addBankCardData prompts the user to add bank card data repeatedly.
 func (c *Client) addBankCardData() {
 	c.addDataRepeatedly("CreditCardData", func() map[string]string {
 		digitsOnly, _ := regexp.Compile(`^\d+$`)
@@ -566,6 +609,11 @@ func (c *Client) addBankCardData() {
 		fmt.Printf("Title: %s, Card Number: %s, Expiry Date: %s\n", data["meta_info"], data["card_number"], data["expiration_date"])
 	})
 }
+
+// editAllData allows the user to edit data in a specified table.
+// It retrieves existing data from the table, prompts the user to select a row to edit,
+// then prompts the user to enter new data, and updates the existing data in the table.
+// It continues editing data until the user decides to stop.
 func (c *Client) editAllData(tableName string, getDataFunc func(oldData map[string]string) map[string]string) {
 	for {
 		data, _ := c.service.GetAllData(c.ctx, tableName, c.userID, "id", "meta_info")
@@ -582,7 +630,7 @@ func (c *Client) editAllData(tableName string, getDataFunc func(oldData map[stri
 			return
 		}
 
-		// Получение существующих данных
+		// Get existing data
 		oldData, err := c.service.GetData(c.ctx, tableName, c.userID, row["id"])
 
 		if err != nil {
@@ -604,6 +652,9 @@ func (c *Client) editAllData(tableName string, getDataFunc func(oldData map[stri
 	}
 }
 
+// editLoginPassword allows the user to edit login credentials.
+// It retrieves existing login credentials, prompts the user to enter new data,
+// and updates the existing login credentials in the "UserCredentials" table.
 func (c *Client) editLoginPassword() {
 	c.editAllData("UserCredentials", func(oldData map[string]string) map[string]string {
 		c.rl.SetPrompt(fmt.Sprintf("Choose a new title (meta-information) [%s]: ", oldData["meta_info"]))
@@ -631,6 +682,9 @@ func (c *Client) editLoginPassword() {
 	})
 }
 
+// editTextData allows the user to edit text data.
+// It retrieves existing text data, prompts the user to enter new data,
+// and updates the existing text data in the "TextData" table.
 func (c *Client) editTextData() {
 	c.editAllData("TextData", func(oldData map[string]string) map[string]string {
 		c.rl.SetPrompt(fmt.Sprintf("Choose a new title (meta-information) [%s]: ", oldData["meta_info"]))
@@ -650,6 +704,9 @@ func (c *Client) editTextData() {
 	})
 }
 
+// editBinaryData allows the user to edit binary data.
+// It retrieves existing binary data, prompts the user to enter new data,
+// and updates the existing binary data in the "FilesData" table.
 func (c *Client) editBinaryData() {
 	c.editAllData("FilesData", func(oldData map[string]string) map[string]string {
 		c.rl.SetPrompt(fmt.Sprintf("Choose a new title (meta-information) [%s]: ", oldData["meta_info"]))
@@ -663,6 +720,9 @@ func (c *Client) editBinaryData() {
 	})
 }
 
+// editBankCardData allows the user to edit bank card data.
+// It retrieves existing bank card data, prompts the user to enter new data,
+// and updates the existing bank card data in the "CreditCardData" table.
 func (c *Client) editBankCardData() {
 	c.editAllData("CreditCardData", func(oldData map[string]string) map[string]string {
 		c.rl.SetPrompt(fmt.Sprintf("Choose a new title (meta-information) [%s]: ", oldData["meta_info"]))
@@ -694,9 +754,12 @@ func (c *Client) editBankCardData() {
 	})
 }
 
+// DeleteData allows the user to delete data from a specified table.
+// It prompts the user to choose a table, then prompts for the entry to delete,
+// and deletes the selected entry from the table. It continues this process until the user decides to stop.
 func (c *Client) DeleteData() {
 	if c.userID == 0 {
-		fmt.Println("Пожалуйста, войдите в систему или зарегистрируйтесь.")
+		fmt.Println("Please log in or register.")
 		return
 	}
 	printMenu()
@@ -737,14 +800,15 @@ func (c *Client) DeleteData() {
 					fmt.Println("Are you sure you want to delete this entry? (yes/no)")
 					line, _ = c.rl.Readline()
 					if strings.ToLower(line) == "yes" {
-						err := c.service.DeleteData(c.ctx, tableName, c.userID, entry["id"])
+						err := c.service.DeleteData(c.ctx, tableName, c.userID,
+							entry["id"])
 						if err != nil {
 							fmt.Printf("Failed to delete data: %s\n", err)
 							return
 						}
 						fmt.Println("Entry deleted.")
 					}
-					// Переходим к метке
+					// Moving on to the label
 					goto Loop
 				}
 			}
@@ -765,7 +829,7 @@ func (c *Client) DeleteData() {
 			fmt.Println("No entry found with the given id or meta_info.")
 		}
 
-		// Метка для перехода
+		// Transition Label
 	Loop:
 		fmt.Println("Do you want to continue deleting data? (yes/no)")
 		line, _ = c.rl.Readline()
@@ -775,6 +839,7 @@ func (c *Client) DeleteData() {
 	}
 }
 
+// getRowFromUserInput prompts the user to enter the number of the entry they want to retrieve and returns the corresponding row of data.
 func getRowFromUserInput(data []map[string]string, rl *readline.Instance) (map[string]string, error) {
 	rl.SetPrompt("Enter the number of the entry you want to get: ")
 	strnum, _ := rl.Readline()
@@ -784,12 +849,12 @@ func getRowFromUserInput(data []map[string]string, rl *readline.Instance) (map[s
 	}
 	num, err := strconv.Atoi(strnum)
 	if err != nil {
-		return nil, fmt.Errorf("Ошибка при преобразовании номера строки в целое число: %w", err)
+		return nil, fmt.Errorf("failed to convert the row number to an integer: %w", err)
 	}
 	row, err := getStringFromSlice(data, num-1)
 
 	if err != nil {
-		return nil, fmt.Errorf("Ошибка при получении строки по её номеру: %w", err)
+		return nil, fmt.Errorf("failed to retrieve the row by its number: %w", err)
 	}
 	return row, nil
 }

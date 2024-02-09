@@ -1,4 +1,4 @@
-// Пакет syncinfo предоставляет функции для работы с информацией о синхронизации.
+// Package syncinfo provides functions for working with synchronization information.
 package syncinfo
 
 import (
@@ -7,25 +7,25 @@ import (
 	"time"
 )
 
-// SyncInfo представляет данные о последней синхронизации.
+// SyncInfo represents data about the last synchronization.
 type SyncInfo struct {
-	LastSync time.Time
+	LastSync time.Time // LastSync represents the timestamp of the last synchronization.
 }
 
-// SyncManager управляет доступом и обновлением данных о синхронизации.
+// SyncManager manages access to and updates of synchronization data.
 type SyncManager struct {
-	fileMutex sync.Mutex       // Мьютекс для обеспечения потокобезопасности при работе с файлом
-	syncData  *MutexedSyncInfo // Данные о синхронизации
-	filename  string           // Имя файла, в котором сохраняются данные о синхронизации
+	fileMutex sync.Mutex       // Mutex to ensure thread safety when working with the file
+	syncData  *MutexedSyncInfo // Synchronization data
+	filename  string           // File name where synchronization data is stored
 }
 
-// MutexedSyncInfo оборачивает SyncInfo вместе с мьютексом для безопасного доступа из разных потоков.
+// MutexedSyncInfo wraps SyncInfo with a mutex for safe access from different threads.
 type MutexedSyncInfo struct {
 	sync.RWMutex
-	SyncInfo SyncInfo
+	SyncInfo SyncInfo // SyncInfo contains synchronization information.
 }
 
-// NewSyncManager создает новый SyncManager и инициализирует файл для хранения данных о синхронизации.
+// NewSyncManager creates a new SyncManager and initializes a file for storing synchronization data.
 func NewSyncManager() *SyncManager {
 	filename := "syncinfo.dat"
 	file, err := os.OpenFile(filename, os.O_CREATE, 0644)
@@ -40,21 +40,21 @@ func NewSyncManager() *SyncManager {
 	}
 }
 
-// UpdateSyncInfo обновляет данные о синхронизации.
+// UpdateSyncInfo updates synchronization data.
 func (sm *SyncManager) UpdateSyncInfo(info SyncInfo) {
 	sm.syncData.Lock()
 	defer sm.syncData.Unlock()
 	sm.syncData.SyncInfo = info
 }
 
-// GetSyncInfo возвращает текущие данные о синхронизации.
+// GetSyncInfo returns the current synchronization data.
 func (sm *SyncManager) GetSyncInfo() SyncInfo {
 	sm.syncData.RLock()
 	defer sm.syncData.RUnlock()
 	return sm.syncData.SyncInfo
 }
 
-// SaveSyncInfoToFile сохраняет данные о синхронизации в файл.
+// SaveSyncInfoToFile saves synchronization data to a file.
 func (sm *SyncManager) SaveSyncInfoToFile() error {
 	sm.fileMutex.Lock()
 	defer sm.fileMutex.Unlock()
@@ -66,7 +66,7 @@ func (sm *SyncManager) SaveSyncInfoToFile() error {
 	return err
 }
 
-// LoadSyncInfoFromFile загружает данные о синхронизации из файла.
+// LoadSyncInfoFromFile loads synchronization data from a file.
 func (sm *SyncManager) LoadSyncInfoFromFile() (time.Time, error) {
 	sm.fileMutex.Lock()
 	defer sm.fileMutex.Unlock()
@@ -84,6 +84,7 @@ func (sm *SyncManager) LoadSyncInfoFromFile() (time.Time, error) {
 	return lastSync, nil
 }
 
+// UpdateAndSaveSyncInfo updates and saves synchronization data.
 func (sm *SyncManager) UpdateAndSaveSyncInfo(info SyncInfo) error {
 	sm.UpdateSyncInfo(info)
 	return sm.SaveSyncInfoToFile()

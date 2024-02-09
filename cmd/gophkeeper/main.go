@@ -17,62 +17,68 @@ import (
 
 func main() {
 
-	// Создайте sync как указатель на nil
+	// Initialize encryption as a nil pointer
 	var enc *encription.Enc
 
+	// Initialize logger
 	logger := logger.NewLogger()
+
+	// Initialize configuration options
 	option := config.NewConfig(enc)
+
+	// Initialize database keeper
 	keeper := bdkeeper.NewKeeper()
+
+	// Initialize synchronization manager
 	sm := syncinfo.NewSyncManager()
 
-	// Извлеките данные сессии из файла
+	// Extract session data from file
 	userID, token, sessionStart, err := option.LoadSessionData()
 	if err != nil {
-		logger.Printf("Не удалось получить сохраненные значения")
+		logger.Printf("Failed to retrieve saved values")
 	}
 
+	// Initialize synchronization client
 	sync, err := gksync.NewClientWithResponses(option.ServerURL)
 	if err != nil {
-		panic("Не удалось создать сервер синхронизации") //!!!
+		panic("Failed to create synchronization server")
 	}
 
+	// Initialize encryption service
 	enc = encription.NewEnc("password")
+
+	// Initialize application services
 	service := services.NewServices(keeper, sync, sm, enc, option, option.SyncWithServer, logger)
 
 	// Create a background context
 	ctx := context.Background()
 
+	// Perform initial data synchronization
 	if err != nil {
-		fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
+		fmt.Printf("Error synchronizing data: %s\n", err)
 	}
+
+	// Start periodic data synchronization with the server
 	go func() {
-		ticker := time.NewTicker(5 * time.Minute) //!!! Вынести в параметры
+		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
 				service.SyncAllWithServer(ctx)
-				// Вот здесь получим данные с сервера от других клиентов. Раз в 5 минут будет достаточно!!!
-
-				// Создайте новую информацию о синхронизации
-				info := syncinfo.SyncInfo{
-					LastSync: time.Now(), // Например, используйте текущее время
-				}
-
-				// Обновите и сохраните информацию о синхронизации
-				err := sm.UpdateAndSaveSyncInfo(info)
+				err = service.SyncAllData(ctx, userID, true)
 				if err != nil {
-					// Обработайте ошибку
-					fmt.Println("Ошибка при обновлении и сохранении информации о синхронизации:", err)
+					fmt.Printf("Error synchronizing data: %s\n", err)
 				}
+
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
+
+	// Initialize and start the client
 	gk := client.NewClient(ctx, service, enc, option, userID, token, sessionStart)
 	defer gk.Close()
-
 	gk.Start()
-
 }

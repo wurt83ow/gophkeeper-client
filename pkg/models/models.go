@@ -1,5 +1,6 @@
 package models
 
+// SyncQueue represents a model for synchronization queue.
 type SyncQueue struct {
 	ID        int    `db:"id"`
 	TableName string `db:"table_name"`

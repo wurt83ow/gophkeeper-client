@@ -16,10 +16,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Enc represents an encryption service.
 type Enc struct {
-	key []byte
+	key []byte // key is the encryption key.
 }
 
+// NewEnc creates a new instance of Enc with the provided key.
 func NewEnc(key string) *Enc {
 	hash := sha256.New()
 	hash.Write([]byte(key))
@@ -28,13 +30,14 @@ func NewEnc(key string) *Enc {
 	}
 }
 
+// IsBase64 checks if the provided string is base64 encoded.
 func (e *Enc) IsBase64(s string) bool {
 	_, err := base64.URLEncoding.DecodeString(s)
 	return err == nil
 }
 
+// Decrypt decrypts the provided base64-encoded encrypted text.
 func (e *Enc) Decrypt(encryptedText string) (string, error) {
-
 	if !e.IsBase64(encryptedText) {
 		return "", errors.New("invalid base64 data")
 	}
@@ -61,6 +64,7 @@ func (e *Enc) Decrypt(encryptedText string) (string, error) {
 	return string(ciphertext), nil
 }
 
+// Encrypt encrypts the provided data.
 func (e *Enc) Encrypt(data string) (string, error) {
 	block, err := aes.NewCipher(e.key)
 	if err != nil {
@@ -79,6 +83,7 @@ func (e *Enc) Encrypt(data string) (string, error) {
 	return base64.URLEncoding.EncodeToString(ciphertext), nil
 }
 
+// DecryptFile decrypts a file.
 func (e *Enc) DecryptFile(inputPath string, outputPath string) error {
 	inputFile, err := os.Open(inputPath)
 	if err != nil {
@@ -124,6 +129,7 @@ func (e *Enc) DecryptFile(inputPath string, outputPath string) error {
 	return nil
 }
 
+// EncryptFile encrypts a file.
 func (e *Enc) EncryptFile(inputPath string, outputPath string) (string, []byte, error) {
 	bs := []byte{}
 
@@ -166,14 +172,14 @@ func (e *Enc) EncryptFile(inputPath string, outputPath string) (string, []byte, 
 		return "", bs, err
 	}
 
-	// Записываем nonce в начало файла
+	// Write the nonce to the beginning of the file
 	if _, err := outputFile.Write(nonce); err != nil {
 		return "", bs, err
 	}
 
 	stream := cipher.NewCTR(block, nonce)
 
-	// Сбрасываем указатель файла на начало
+	// Reset file pointer to the beginning
 	inputFile.Seek(0, 0)
 
 	for {
@@ -195,15 +201,19 @@ func (e *Enc) EncryptFile(inputPath string, outputPath string) (string, []byte, 
 	return encryptedFilePath, hash, nil
 }
 
+// HashPassword hashes the provided password using bcrypt.
 func (e *Enc) HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
 }
 
+// CompareHashAndPassword compares a hashed password with its possible plaintext equivalent.
 func (e *Enc) CompareHashAndPassword(hashedPassword, password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
 }
+
+// GetHash returns the hash of the provided data.
 func (e *Enc) GetHash(data []byte) string {
 	hasher := sha256.New()
 	hasher.Write(data)

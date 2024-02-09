@@ -12,19 +12,22 @@ import (
 	"time"
 )
 
+// Options represents the configuration options for the application.
 type Options struct {
-	MaxFileSize     int
-	FileStoragePath string
-	ServerURL       string
-	SyncWithServer  bool
-	SessionDuration time.Duration
-	enc             Encrypt
+	MaxFileSize     int           // MaxFileSize represents the maximum allowed size for files.
+	FileStoragePath string        // FileStoragePath represents the path where files are stored.
+	ServerURL       string        // ServerURL represents the URL of the server.
+	SyncWithServer  bool          // SyncWithServer determines whether to synchronize data with the server.
+	SessionDuration time.Duration // SessionDuration represents the duration of a session.
+	enc             Encrypt       // enc is an instance implementing the Encrypt interface for encryption operations.
 }
 
+// Encrypt is an interface for encryption operations.
 type Encrypt interface {
 	Decrypt(encryptedText string) (string, error)
 }
 
+// NewConfig creates a new instance of Options with the provided encryption implementation.
 func NewConfig(enc Encrypt) *Options {
 	maxFileSize := flag.Int("maxFileSize", 100*1024*1024, "maximum file size")
 	fileStoragePath := flag.String("fileStoragePath", "", "file storage path")
@@ -40,7 +43,7 @@ func NewConfig(enc Encrypt) *Options {
 		}
 		*fileStoragePath = filepath.Join(home, "gkeeper")
 
-		// Создание каталога gkeeper, если он не существует
+		// Create the gkeeper directory if it doesn't exist
 		if _, err := os.Stat(*fileStoragePath); os.IsNotExist(err) {
 			err = os.Mkdir(*fileStoragePath, 0755)
 			if err != nil {
@@ -80,39 +83,40 @@ func NewConfig(enc Encrypt) *Options {
 	}
 }
 
+// LoadSessionData loads session data from the session.dat file.
 func (o *Options) LoadSessionData() (int, string, time.Time, error) {
-	// Проверьте, существует ли файл
+	// Check if the file exists
 	if _, err := os.Stat("session.dat"); os.IsNotExist(err) {
-		return 0, "", time.Time{}, fmt.Errorf("Файл session.dat не существует")
+		return 0, "", time.Time{}, fmt.Errorf("session.dat file does not exist")
 	}
 
-	// Прочитайте файл и разделите его на userID, token, время начала сеанса и время последней синхронизации
+	// Read the file and split it into userID, token, session start time, and last synchronization time
 	fileContent, err := os.ReadFile("session.dat")
 	if err != nil {
-		return 0, "", time.Time{}, fmt.Errorf("Ошибка при чтении файла session.dat: %w", err)
+		return 0, "", time.Time{}, fmt.Errorf("error reading session.dat file: %w", err)
 	}
 	lines := strings.Split(string(fileContent), "\n")
 	if len(lines) < 4 {
-		return 0, "", time.Time{}, errors.New("Файл session.dat имеет неверный формат")
+		return 0, "", time.Time{}, errors.New("session.dat file has an invalid format")
 	}
 
-	// Расшифруйте userID
+	// Decrypt the userID
 	decryptedUserID, err := o.enc.Decrypt(lines[0])
 	if err != nil {
-		return 0, "", time.Time{}, fmt.Errorf("Ошибка при расшифровке userID: %w", err)
+		return 0, "", time.Time{}, fmt.Errorf("error decrypting userID: %w", err)
 	}
 	userID, err := strconv.Atoi(decryptedUserID)
 	if err != nil {
-		return 0, "", time.Time{}, fmt.Errorf("Ошибка при преобразовании userID в целое число: %w", err)
+		return 0, "", time.Time{}, fmt.Errorf("error converting userID to integer: %w", err)
 	}
 
-	// Извлеките token
+	// Extract the token
 	token := lines[1]
 
-	// Преобразуйте время начала сеанса обратно в Time
+	// Convert session start time back to Time
 	sessionStart, err := time.Parse(time.RFC3339, lines[2])
 	if err != nil {
-		return 0, "", time.Time{}, fmt.Errorf("Ошибка при разборе времени начала сеанса: %w", err)
+		return 0, "", time.Time{}, fmt.Errorf("error parsing session start time: %w", err)
 	}
 
 	return userID, token, sessionStart, nil
