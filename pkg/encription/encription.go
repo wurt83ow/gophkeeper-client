@@ -28,14 +28,14 @@ func NewEnc(key string) *Enc {
 	}
 }
 
-func isBase64(s string) bool {
+func (e *Enc) IsBase64(s string) bool {
 	_, err := base64.URLEncoding.DecodeString(s)
 	return err == nil
 }
 
 func (e *Enc) Decrypt(encryptedText string) (string, error) {
 
-	if !isBase64(encryptedText) {
+	if !e.IsBase64(encryptedText) {
 		return "", errors.New("invalid base64 data")
 	}
 	ciphertext, err := base64.URLEncoding.DecodeString(encryptedText)

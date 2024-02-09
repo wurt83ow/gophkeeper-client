@@ -33,8 +33,8 @@ type Logger interface {
 	Printf(format string, v ...interface{})
 }
 
-func NewServices(keeper *bdkeeper.Keeper, sync *gksync.ClientWithResponses,
-	enc *encription.Enc, opt *config.Options, syncWithServer bool, logger Logger) *Service {
+func NewServices(keeper *bdkeeper.Keeper, sync *gksync.ClientWithResponses, enc *encription.Enc,
+	opt *config.Options, syncWithServer bool, logger Logger) *Service {
 	return &Service{
 		keeper: keeper,
 
@@ -195,6 +195,7 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 
 func (s *Service) SyncAllWithServer(ctx context.Context) {
 
+	// Отправим данные на сервер
 	// Получаем все записи из таблицы синхронизации со статусом "В ожидании"
 	entries, err := s.keeper.GetPendingSyncEntries(ctx)
 
@@ -203,7 +204,7 @@ func (s *Service) SyncAllWithServer(ctx context.Context) {
 	}
 
 	for _, entry := range entries {
-		err = s.syncData(ctx, entry)
+		err = s.sendData(ctx, entry)
 
 		// Если запрос успешно выполнен, обновляем статус записи на "Done"
 		if err == nil {
@@ -216,6 +217,7 @@ func (s *Service) SyncAllWithServer(ctx context.Context) {
 			s.handleSyncError(ctx, err, entry)
 		}
 	}
+
 }
 
 // handleSyncError обрабатывает ошибки, возникающие при синхронизации данных с сервером
@@ -227,7 +229,7 @@ func (s *Service) handleSyncError(ctx context.Context, err error, entry models.S
 	// Повторение попытки синхронизации
 	retryCount := 0
 	for retryCount < 3 {
-		err = s.syncData(ctx, entry)
+		err = s.sendData(ctx, entry)
 
 		if err == nil {
 			// Если запрос успешно выполнен, обновляем статус записи на "Done"
@@ -244,7 +246,7 @@ func (s *Service) handleSyncError(ctx context.Context, err error, entry models.S
 }
 
 // syncData синхронизирует данные с сервером
-func (s *Service) syncData(ctx context.Context, entry models.SyncQueue) error {
+func (s *Service) sendData(ctx context.Context, entry models.SyncQueue) error {
 
 	bodyReader := bytes.NewReader([]byte(entry.Data))
 	switch entry.Operation {

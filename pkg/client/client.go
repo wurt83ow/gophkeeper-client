@@ -28,15 +28,19 @@ type Client struct {
 	opt     *config.Options
 	ctx     context.Context
 
-	userID int // добавляем поле для хранения идентификатора текущего пользователя
+	userID       int // добавляем поле для хранения идентификатора текущего пользователя
+	token        string
+	sessionStart time.Time
 }
 
-func NewClient(ctx context.Context, service *services.Service, enc *encription.Enc, opt *config.Options) *Client {
+func NewClient(ctx context.Context, service *services.Service, enc *encription.Enc,
+	opt *config.Options, userID int, token string, sessionStart time.Time) *Client {
 	rl, err := readline.New("> ")
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &Client{rl: rl, ctx: ctx, service: service, enc: enc, opt: opt}
+	return &Client{rl: rl, ctx: ctx, service: service, enc: enc,
+		opt: opt, userID: userID, token: token, sessionStart: sessionStart}
 }
 func (c *Client) Start() {
 	rootCmd := &cobra.Command{
@@ -57,16 +61,11 @@ func (c *Client) Start() {
 		"get":  c.getData,
 	}
 
-	// Извлеките данные сессии из файла
-	userID, token, sessionStart, err := c.loadSessionData()
-	if err == nil {
-		c.userID = userID
-		c.ctx = appcontext.WithJWTToken(c.ctx, token)
-		// Если прошло слишком много времени, попросите пользователя войти в систему снова
-		if time.Since(sessionStart) > c.opt.SessionDuration {
-			fmt.Println("Ваш сеанс истек. Пожалуйста, войдите снова.")
-			c.ClearSession()
-		}
+	c.ctx = appcontext.WithJWTToken(c.ctx, c.token)
+	// Если прошло слишком много времени, попросите пользователя войти в систему снова
+	if time.Since(c.sessionStart) > c.opt.SessionDuration {
+		fmt.Println("Ваш сеанс истек. Пожалуйста, войдите снова.")
+		c.ClearSession()
 	}
 
 	for use, runFunc := range commands {
@@ -87,7 +86,7 @@ func (c *Client) Start() {
 		rootCmd.AddCommand(command)
 	}
 
-	err = rootCmd.Execute()
+	err := rootCmd.Execute()
 	if err != nil {
 		if strings.Contains(err.Error(), "unknown command") {
 			fmt.Println("Такой команды не существует. Вот список доступных команд:")
@@ -98,44 +97,6 @@ func (c *Client) Start() {
 			fmt.Println("Произошла ошибка:", err)
 		}
 	}
-}
-
-func (c *Client) loadSessionData() (int, string, time.Time, error) {
-	// Проверьте, существует ли файл
-	if _, err := os.Stat("session.dat"); os.IsNotExist(err) {
-		return 0, "", time.Time{}, fmt.Errorf("Файл session.dat не существует")
-	}
-
-	// Прочитайте файл и разделите его на userID, token и время начала сеанса
-	fileContent, err := os.ReadFile("session.dat")
-	if err != nil {
-		return 0, "", time.Time{}, fmt.Errorf("Ошибка при чтении файла session.dat: %w", err)
-	}
-	lines := strings.Split(string(fileContent), "\n")
-	if len(lines) < 3 {
-		return 0, "", time.Time{}, errors.New("Файл session.dat имеет неверный формат")
-	}
-
-	// Расшифруйте userID
-	decryptedUserID, err := c.enc.Decrypt(lines[0])
-	if err != nil {
-		return 0, "", time.Time{}, fmt.Errorf("Ошибка при расшифровке userID: %w", err)
-	}
-	userID, err := strconv.Atoi(decryptedUserID)
-	if err != nil {
-		return 0, "", time.Time{}, fmt.Errorf("Ошибка при преобразовании userID в целое число: %w", err)
-	}
-
-	// Извлеките token
-	token := lines[1]
-
-	// Преобразуйте время начала сеанса обратно в Time
-	sessionStart, err := time.Parse(time.RFC3339, lines[2])
-	if err != nil {
-		return 0, "", time.Time{}, fmt.Errorf("Ошибка при разборе времени начала сеанса: %w", err)
-	}
-
-	return userID, token, sessionStart, nil
 }
 
 func (c *Client) Close() {
@@ -243,7 +204,7 @@ func (c *Client) login() {
 		// Здесь начинается новая сессия
 		if c.opt.SyncWithServer {
 			// Извлеките данные сессии из файла
-			sessionUserID, _, _, err := c.loadSessionData()
+			sessionUserID, _, _, err := c.opt.LoadSessionData()
 
 			//Если не удалось извлечь userID из файла сессии или извлеченный
 			//userID отличается от текущего, тогда загрузим все данные с сервера
@@ -262,10 +223,10 @@ func (c *Client) login() {
 		}
 
 		// Получите текущее время и преобразуйте его в строку
-		sessionStart := time.Now().Format(time.RFC3339)
+		c.sessionStart = time.Now()
 
 		// Запишите userID, token и время начала сеанса в файл
-		err = c.saveSessionData(encryptedUserID, token, sessionStart)
+		err = c.saveSessionData(encryptedUserID, token, c.sessionStart.Format(time.RFC3339))
 		if err != nil {
 			fmt.Printf("Ошибка при записи userID в файл: %s\n", err)
 			return
