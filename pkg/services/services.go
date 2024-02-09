@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/wurt83ow/gophkeeper-client/pkg/bdkeeper"
@@ -17,12 +18,14 @@ import (
 	"github.com/wurt83ow/gophkeeper-client/pkg/encription"
 	"github.com/wurt83ow/gophkeeper-client/pkg/gksync"
 	"github.com/wurt83ow/gophkeeper-client/pkg/models"
+	"github.com/wurt83ow/gophkeeper-client/pkg/syncinfo"
 )
 
 type Service struct {
 	keeper *bdkeeper.Keeper
 
 	sync           *gksync.ClientWithResponses
+	sm             *syncinfo.SyncManager
 	enc            *encription.Enc
 	opt            *config.Options
 	syncWithServer bool
@@ -33,12 +36,13 @@ type Logger interface {
 	Printf(format string, v ...interface{})
 }
 
-func NewServices(keeper *bdkeeper.Keeper, sync *gksync.ClientWithResponses, enc *encription.Enc,
+func NewServices(keeper *bdkeeper.Keeper, sync *gksync.ClientWithResponses, sm *syncinfo.SyncManager, enc *encription.Enc,
 	opt *config.Options, syncWithServer bool, logger Logger) *Service {
 	return &Service{
 		keeper: keeper,
 
 		sync:           sync,
+		sm:             sm,
 		enc:            enc,
 		opt:            opt,
 		syncWithServer: syncWithServer,
@@ -160,7 +164,7 @@ func (s *Service) SyncFile(ctx context.Context, userID int, filePath string, fil
 	}
 }
 
-func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
+func (s *Service) SyncAllData(ctx context.Context, user_id int, update bool) error {
 	if !s.syncWithServer {
 		return nil
 	}
@@ -168,25 +172,37 @@ func (s *Service) SyncAllData(ctx context.Context, user_id int) error {
 	// Список всех таблиц данных
 	tables := []string{"UserCredentials", "CreditCardData", "TextData", "FilesData"}
 
+	var lastSync time.Time
+	if update {
+		lastSync = s.sm.GetSyncInfo().LastSync
+	}
 	// Проходим по каждой таблице
 	for _, table := range tables {
 		// Получаем все данные из таблицы на сервере
-		resp, err := s.sync.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id)
+		resp, err := s.sync.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id, lastSync)
 		if err != nil {
 			s.logger.Printf("Ошибка при получении данных из таблицы %s: %v", table, err)
 		}
 
-		// Очищаем соответствующую таблицу в локальной базе данных
-		err = s.keeper.ClearData(ctx, table, user_id)
-		if err != nil {
-			s.logger.Printf("Ошибка при очистке таблицы %s: %v", table, err)
+		if !update {
+			// Очищаем соответствующую таблицу в локальной базе данных
+			err = s.keeper.ClearData(ctx, table, user_id)
+			if err != nil {
+				s.logger.Printf("Ошибка при очистке таблицы %s: %v", table, err)
+			}
 		}
+
 		// Добавляем все полученные данные в локальную базу данных
 		for _, row := range *resp.JSON200 {
-			err = s.keeper.AddData(ctx, table, user_id, row["id"], row)
-			if err != nil {
-				s.logger.Printf("Ошибка при добавлении данных в таблицу %s: %v", table, err)
+			if update {
+
+			} else {
+				err = s.keeper.AddData(ctx, table, user_id, row["id"], row)
+				if err != nil {
+					s.logger.Printf("Ошибка при добавлении данных в таблицу %s: %v", table, err)
+				}
 			}
+
 		}
 	}
 
@@ -359,7 +375,6 @@ func (s *Service) GetAllData(ctx context.Context, table string, user_id int, col
 	if err != nil {
 		return nil, err
 	}
-	// data, err := s.sync.GetGetAllDataTableUserIDWithResponse(ctx, table, user_id)
 
 	// Расшифровка данных перед возвратом
 	for i, item := range data {

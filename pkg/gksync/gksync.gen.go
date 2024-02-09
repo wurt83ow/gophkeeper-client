@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/oapi-codegen/runtime"
 	"github.com/wurt83ow/gophkeeper-client/pkg/appcontext"
@@ -135,7 +136,7 @@ type ClientInterface interface {
 	DeleteDeleteDataTableUserIDEntryID(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetGetAllDataTableUserID request
-	GetGetAllDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetGetAllDataTableUserID(ctx context.Context, table string, userID int, lastSync time.Time, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetGetDataTableUserIDEntryID request
 	GetGetDataTableUserIDEntryID(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -213,8 +214,8 @@ func (c *Client) DeleteDeleteDataTableUserIDEntryID(ctx context.Context, table s
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetGetAllDataTableUserID(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetGetAllDataTableUserIDRequest(c.Server, table, userID)
+func (c *Client) GetGetAllDataTableUserID(ctx context.Context, table string, userID int, lastSync time.Time, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetGetAllDataTableUserIDRequest(c.Server, table, userID, lastSync)
 	if err != nil {
 		return nil, err
 	}
@@ -492,7 +493,7 @@ func NewDeleteDeleteDataTableUserIDEntryIDRequest(server string, table string, u
 }
 
 // NewGetGetAllDataTableUserIDRequest generates requests for GetGetAllDataTableUserID
-func NewGetGetAllDataTableUserIDRequest(server string, table string, userID int) (*http.Request, error) {
+func NewGetGetAllDataTableUserIDRequest(server string, table string, userID int, lastSync time.Time) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -514,7 +515,7 @@ func NewGetGetAllDataTableUserIDRequest(server string, table string, userID int)
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/getAllData/%s/%s", pathParam0, pathParam1)
+	operationPath := fmt.Sprintf("/getAllData/%s/%s/", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -924,7 +925,7 @@ type ClientWithResponsesInterface interface {
 	DeleteDeleteDataTableUserIDEntryIDWithResponse(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*DeleteDeleteDataTableUserIDEntryIDResponse, error)
 
 	// GetGetAllDataTableUserIDWithResponse request
-	GetGetAllDataTableUserIDWithResponse(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*GetGetAllDataTableUserIDResponse, error)
+	GetGetAllDataTableUserIDWithResponse(ctx context.Context, table string, userID int, lastSync time.Time, reqEditors ...RequestEditorFn) (*GetGetAllDataTableUserIDResponse, error)
 
 	// GetGetDataTableUserIDEntryIDWithResponse request
 	GetGetDataTableUserIDEntryIDWithResponse(ctx context.Context, table string, userID int, entryID string, reqEditors ...RequestEditorFn) (*GetGetDataTableUserIDEntryIDResponse, error)
@@ -1223,8 +1224,8 @@ func (c *ClientWithResponses) DeleteDeleteDataTableUserIDEntryIDWithResponse(ctx
 }
 
 // GetGetAllDataTableUserIDWithResponse request returning *GetGetAllDataTableUserIDResponse
-func (c *ClientWithResponses) GetGetAllDataTableUserIDWithResponse(ctx context.Context, table string, userID int, reqEditors ...RequestEditorFn) (*GetGetAllDataTableUserIDResponse, error) {
-	rsp, err := c.GetGetAllDataTableUserID(ctx, table, userID, reqEditors...)
+func (c *ClientWithResponses) GetGetAllDataTableUserIDWithResponse(ctx context.Context, table string, userID int, lastSync time.Time, reqEditors ...RequestEditorFn) (*GetGetAllDataTableUserIDResponse, error) {
+	rsp, err := c.GetGetAllDataTableUserID(ctx, table, userID, lastSync, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

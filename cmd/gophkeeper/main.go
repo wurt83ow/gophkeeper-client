@@ -37,7 +37,7 @@ func main() {
 	}
 
 	enc = encription.NewEnc("password")
-	service := services.NewServices(keeper, sync, enc, option, option.SyncWithServer, logger)
+	service := services.NewServices(keeper, sync, sm, enc, option, option.SyncWithServer, logger)
 
 	// Create a background context
 	ctx := context.Background()

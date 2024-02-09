@@ -209,7 +209,7 @@ func (c *Client) login() {
 			//Если не удалось извлечь userID из файла сессии или извлеченный
 			//userID отличается от текущего, тогда загрузим все данные с сервера
 			if err != nil || c.userID != sessionUserID {
-				err = c.service.SyncAllData(c.ctx, userID)
+				err = c.service.SyncAllData(c.ctx, userID, false)
 				if err != nil {
 					fmt.Printf("Ошибка при синхронизации данных: %s\n", err)
 				}
