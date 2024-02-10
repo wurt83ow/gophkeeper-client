@@ -89,3 +89,19 @@ func (sm *SyncManager) UpdateAndSaveSyncInfo(info SyncInfo) error {
 	sm.UpdateSyncInfo(info)
 	return sm.SaveSyncInfoToFile()
 }
+
+// LoadAndUpdateLastSyncFromFile loads the last synchronization time from a file, updates SyncInfo, and returns it.
+func (sm *SyncManager) LoadAndUpdateLastSyncFromFile() (time.Time, error) {
+	sm.fileMutex.Lock()
+	defer sm.fileMutex.Unlock()
+
+	lastSync, err := sm.LoadSyncInfoFromFile()
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	// Обновляем SyncInfo с загруженным значением lastSync
+	sm.UpdateSyncInfo(SyncInfo{LastSync: lastSync})
+
+	return lastSync, nil
+}

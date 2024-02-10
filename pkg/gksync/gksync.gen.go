@@ -175,14 +175,12 @@ func (c *Client) PostAddDataTableUserIDEntryIDWithBody(ctx context.Context, tabl
 		return nil, err
 	}
 	req = req.WithContext(ctx)
-
 	// +++
 	err = c.addTokenToHeader(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	// ---
-
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
@@ -208,6 +206,12 @@ func (c *Client) DeleteDeleteDataTableUserIDEntryID(ctx context.Context, table s
 		return nil, err
 	}
 	req = req.WithContext(ctx)
+	// +++
+	err = c.addTokenToHeader(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	// ---
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}

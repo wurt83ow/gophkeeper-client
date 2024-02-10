@@ -771,7 +771,6 @@ func (c *Client) DeleteData() {
 	}
 
 	for {
-
 		data, _ := c.service.GetAllData(c.ctx, tableName, c.userID, "id", "meta_info")
 		if len(data) == 0 {
 			fmt.Println("No entries found in the table:", tableName)
@@ -779,64 +778,49 @@ func (c *Client) DeleteData() {
 		}
 		c.printAllData(data)
 
-		fmt.Println("Enter id or meta_info to delete:")
+		fmt.Println("Enter the number of the entry to delete:")
+		line, _ := c.rl.Readline()
+		num, err := strconv.Atoi(strings.TrimSpace(line))
+		if err != nil || num < 1 || num > len(data) {
+			fmt.Println("Invalid input. Please enter a valid number.")
+			continue
+		}
+
+		entryToDelete := data[num-1]
+		fmt.Printf("Are you sure you want to delete the following entry?\n%s\n", formatEntry(num, entryToDelete))
+		fmt.Println("Type 'yes' to confirm or 'no' to cancel.")
 		line, _ = c.rl.Readline()
-		var entriesToDelete []map[string]string
-		for _, entry := range data {
-			if entry["id"] == line || strings.Contains(entry["meta_info"], line) {
-				entriesToDelete = append(entriesToDelete, entry)
-			}
+		if strings.ToLower(strings.TrimSpace(line)) != "yes" {
+			fmt.Println("Deletion canceled.")
+			continue
 		}
 
-		if len(entriesToDelete) > 1 {
-			fmt.Println("Multiple entries found:")
-			for _, entry := range entriesToDelete {
-				fmt.Printf("ID: %s, Meta Info: %s\n", entry["id"], entry["meta_info"])
-			}
-			fmt.Println("Please enter the id of the entry you want to delete.")
-			line, _ = c.rl.Readline()
-			for _, entry := range entriesToDelete {
-				if entry["id"] == line {
-					fmt.Println("Are you sure you want to delete this entry? (yes/no)")
-					line, _ = c.rl.Readline()
-					if strings.ToLower(line) == "yes" {
-						err := c.service.DeleteData(c.ctx, tableName, c.userID,
-							entry["id"])
-						if err != nil {
-							fmt.Printf("Failed to delete data: %s\n", err)
-							return
-						}
-						fmt.Println("Entry deleted.")
-					}
-					// Moving on to the label
-					goto Loop
-				}
-			}
-			fmt.Println("No entry found with the given id.")
-		} else if len(entriesToDelete) == 1 {
-			fmt.Println("Are you sure you want to delete this entry? (yes/no)")
-			line, _ = c.rl.Readline()
-			if strings.ToLower(line) == "yes" {
-				err := c.service.DeleteData(c.ctx, tableName, c.userID, entriesToDelete[0]["id"])
-				if err != nil {
-					fmt.Printf("Failed to delete data: %s\n", err)
-					return
-				}
-
-				fmt.Println("Entry deleted.")
-			}
-		} else {
-			fmt.Println("No entry found with the given id or meta_info.")
+		err = c.service.DeleteData(c.ctx, tableName, c.userID, entryToDelete["id"])
+		if err != nil {
+			fmt.Printf("Failed to delete data: %s\n", err)
+			return
 		}
+		fmt.Println("Entry deleted.")
 
-		// Transition Label
-	Loop:
 		fmt.Println("Do you want to continue deleting data? (yes/no)")
 		line, _ = c.rl.Readline()
-		if strings.ToLower(line) != "yes" && strings.ToLower(line) != "y" {
+		if strings.ToLower(strings.TrimSpace(line)) != "yes" {
 			break
 		}
 	}
+}
+
+// formatEntry takes a record number and a map of data rows and formats it into a string for output.
+func formatEntry(num int, entry map[string]string) string {
+	var formattedEntry strings.Builder
+	formattedEntry.WriteString("Entry:\n")
+	formattedEntry.WriteString(fmt.Sprintf("#: %d\n", num))
+	for key, value := range entry {
+		if key != "id" { // Skip the id output
+			formattedEntry.WriteString(fmt.Sprintf("%s: %s\n", key, value))
+		}
+	}
+	return formattedEntry.String()
 }
 
 // getRowFromUserInput prompts the user to enter the number of the entry they want to retrieve and returns the corresponding row of data.

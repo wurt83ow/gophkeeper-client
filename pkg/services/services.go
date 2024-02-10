@@ -180,8 +180,17 @@ func (s *Service) SyncAllData(ctx context.Context, userID int, update bool) erro
 
 	var lastSync time.Time
 	if update {
-		lastSync = s.sm.GetSyncInfo().LastSync
+
+		// Load lastSync from file and update SyncInfo
+		var err error
+		lastSync, err = s.sm.LoadAndUpdateLastSyncFromFile()
+
+		if err != nil {
+			s.logger.Printf("lastSync", err)
+			fmt.Printf("Error loading and updating lastSync: %v\n", err)
+		}
 	}
+
 	// Iterate over each table
 	for _, table := range tables {
 		// Get all data from the table on the server
@@ -190,9 +199,9 @@ func (s *Service) SyncAllData(ctx context.Context, userID int, update bool) erro
 			s.logger.Printf("Error getting data from table %s: %v", table, err)
 		}
 
-		// if resp == nil || resp.JSON200 == nil {
-		// 	continue
-		// }
+		if resp == nil || resp.JSON200 == nil {
+			continue
+		}
 		if !update {
 			// Clear the corresponding table in the local database
 			err = s.keeper.ClearData(ctx, table, userID)
