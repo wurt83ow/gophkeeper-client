@@ -19,6 +19,8 @@ type Options struct {
 	ServerURL       string        // ServerURL represents the URL of the server.
 	SyncWithServer  bool          // SyncWithServer determines whether to synchronize data with the server.
 	SessionDuration time.Duration // SessionDuration represents the duration of a session.
+	CertFilePath    string        // CertFilePath represents the path to the certificate file.
+	KeyFilePath     string        // KeyFilePath represents the path to the key file.
 	enc             Encrypt       // enc is an instance implementing the Encrypt interface for encryption operations.
 }
 
@@ -33,6 +35,8 @@ func NewConfig(enc Encrypt) *Options {
 	fileStoragePath := flag.String("fileStoragePath", "", "file storage path")
 	serverURL := flag.String("serverURL", "http://localhost:8080", "server URL")
 	syncWithServer := flag.Bool("syncWithServer", true, "synchronize with server")
+	certFilePath := flag.String("certFilePath", "server.crt", "certificate file path")
+	keyFilePath := flag.String("keyFilePath", "server.key", "key file path")
 
 	flag.Parse()
 
@@ -79,6 +83,8 @@ func NewConfig(enc Encrypt) *Options {
 		ServerURL:       *serverURL,
 		SyncWithServer:  *syncWithServer,
 		SessionDuration: time.Minute * 300,
+		CertFilePath:    *certFilePath,
+		KeyFilePath:     *keyFilePath,
 		enc:             enc,
 	}
 }

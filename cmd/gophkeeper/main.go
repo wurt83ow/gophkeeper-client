@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/wurt83ow/gophkeeper-client/pkg/bdkeeper"
@@ -42,9 +43,22 @@ func main() {
 	}
 
 	// Initialize synchronization client
-	sync, err := gksync.NewClientWithResponses(option.ServerURL)
-	if err != nil {
-		panic("Failed to create synchronization server")
+	serverURL := option.ServerURL
+
+	// Remove "https://" and "http://" prefixes
+	serverURL = strings.TrimPrefix(serverURL, "https://")
+	serverURL = strings.TrimPrefix(serverURL, "http://")
+
+	// Try HTTPS first
+	httpsURL := "https://" + serverURL
+	sync, clientErr := gksync.NewClientWithResponses(httpsURL, option.CertFilePath, option.KeyFilePath)
+	if clientErr != nil {
+		// If HTTPS connection failed, try HTTP
+		httpURL := "http://" + serverURL
+		sync, clientErr = gksync.NewClientWithResponses(httpURL, "", "")
+		if clientErr != nil {
+			panic(fmt.Sprintf("Failed to create synchronization server: %s", clientErr))
+		}
 	}
 
 	// Initialize application services
