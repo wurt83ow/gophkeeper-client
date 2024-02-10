@@ -271,6 +271,9 @@ func (k *Keeper) AddData(ctx context.Context, table string, user_id int, entry_i
 
 	// Add other keys and values from the provided data map
 	for key, value := range data {
+		if key == "deleted" {
+			continue
+		}
 		keys = append(keys, key)
 		values = append(values, value)
 	}

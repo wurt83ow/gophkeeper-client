@@ -190,6 +190,9 @@ func (s *Service) SyncAllData(ctx context.Context, userID int, update bool) erro
 			s.logger.Printf("Error getting data from table %s: %v", table, err)
 		}
 
+		// if resp == nil || resp.JSON200 == nil {
+		// 	continue
+		// }
 		if !update {
 			// Clear the corresponding table in the local database
 			err = s.keeper.ClearData(ctx, table, userID)
@@ -234,6 +237,7 @@ func (s *Service) SyncAllData(ctx context.Context, userID int, update bool) erro
 					}
 				}
 			} else {
+				fmt.Println("test______________________________________________")
 				err = s.keeper.AddData(ctx, table, userID, row["id"], row)
 				if err != nil {
 					s.logger.Printf("Error adding data to table %s: %v", table, err)

@@ -497,15 +497,19 @@ func NewGetGetAllDataTableUserIDRequest(server string, table string, userID int,
 	var err error
 
 	var pathParam0 string
-
 	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "table", runtime.ParamLocationPath, table)
 	if err != nil {
 		return nil, err
 	}
 
 	var pathParam1 string
-
 	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "userID", runtime.ParamLocationPath, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "lastSyncStr", runtime.ParamLocationPath, lastSync.Format(time.RFC3339))
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +519,7 @@ func NewGetGetAllDataTableUserIDRequest(server string, table string, userID int,
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/getAllData/%s/%s/", pathParam0, pathParam1)
+	operationPath := fmt.Sprintf("/getAllData/%s/%s/%s", pathParam0, pathParam1, pathParam2)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}

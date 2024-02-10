@@ -90,13 +90,15 @@ func (o *Options) LoadSessionData() (int, string, time.Time, error) {
 		return 0, "", time.Time{}, fmt.Errorf("session.dat file does not exist")
 	}
 
-	// Read the file and split it into userID, token, session start time, and last synchronization time
+	// Read the file and split it into lines
 	fileContent, err := os.ReadFile("session.dat")
 	if err != nil {
 		return 0, "", time.Time{}, fmt.Errorf("error reading session.dat file: %w", err)
 	}
 	lines := strings.Split(string(fileContent), "\n")
-	if len(lines) < 4 {
+
+	// Check if the file contains at least 3 lines
+	if len(lines) < 3 {
 		return 0, "", time.Time{}, errors.New("session.dat file has an invalid format")
 	}
 
@@ -113,7 +115,7 @@ func (o *Options) LoadSessionData() (int, string, time.Time, error) {
 	// Extract the token
 	token := lines[1]
 
-	// Convert session start time back to Time
+	// Parse the session start time
 	sessionStart, err := time.Parse(time.RFC3339, lines[2])
 	if err != nil {
 		return 0, "", time.Time{}, fmt.Errorf("error parsing session start time: %w", err)

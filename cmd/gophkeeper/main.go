@@ -23,6 +23,8 @@ func main() {
 	// Initialize logger
 	logger := logger.NewLogger()
 
+	// Initialize encryption service
+	enc = encription.NewEnc("password")
 	// Initialize configuration options
 	option := config.NewConfig(enc)
 
@@ -34,6 +36,7 @@ func main() {
 
 	// Extract session data from file
 	userID, token, sessionStart, err := option.LoadSessionData()
+
 	if err != nil {
 		logger.Printf("Failed to retrieve saved values")
 	}
@@ -43,9 +46,6 @@ func main() {
 	if err != nil {
 		panic("Failed to create synchronization server")
 	}
-
-	// Initialize encryption service
-	enc = encription.NewEnc("password")
 
 	// Initialize application services
 	service := services.NewServices(keeper, sync, sm, enc, option, option.SyncWithServer, logger)

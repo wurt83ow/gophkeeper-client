@@ -75,7 +75,7 @@ func (c *Client) Start() {
 	// If session has expired, prompt the user to log in again
 	if time.Since(c.sessionStart) > c.opt.SessionDuration {
 		fmt.Println("Your session has expired. Please log in again.")
-		c.ClearSession()
+		// c.ClearSession()
 	}
 
 	// Add commands to the root command
