@@ -5,8 +5,8 @@ on:
       - 'v*'
 
 jobs:
-  build_and_release:
-    name: Build and Release
+  build:
+    name: Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -27,10 +27,19 @@ jobs:
       - name: Build
         run: go build -ldflags "-X main.version=${GITHUB_REF#refs/tags/} -X 'main.buildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o gophkeeper-${{ runner.os }} ./cmd/gophkeeper
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: gophkeeper-${{ runner.os }}
+          path: ./gophkeeper-${{ runner.os }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
-        if: matrix.os == 'ubuntu-latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -39,12 +48,35 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload Release Asset
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Upload Release Asset (Ubuntu)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-${{ runner.os }}
-          asset_name: gophkeeper-${{ runner.os }}
+          asset_path: ./gophkeeper-ubuntu-latest
+          asset_name: gophkeeper-ubuntu-latest
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset (Windows)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./gophkeeper-windows-latest
+          asset_name: gophkeeper-windows-latest
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset (macOS)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./gophkeeper-macos-latest
+          asset_name: gophkeeper-macos-latest
           asset_content_type: application/octet-stream
