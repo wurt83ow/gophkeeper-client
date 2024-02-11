@@ -25,7 +25,7 @@ jobs:
         run: go mod download
 
       - name: Build
-        run: go build -ldflags="-X main.version=${GITHUB_REF#refs/tags/} -X main.buildTime=$(date)" -o myapp-${{ runner.os }}
+        run: go build -ldflags="-X main.version=${GITHUB_REF#refs/tags/} -X main.buildTime=$(date)" -o gophkeeper-${{ runner.os }} ./cmd/gophkeeper
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
