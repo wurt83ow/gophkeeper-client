@@ -30,9 +30,9 @@ jobs:
       - name: Compress artifact
         run: |
           tar -czf gophkeeper-${{ runner.os }}.tar.gz gophkeeper-${{ runner.os }}
-          if [ "${{ runner.os }}" != "Windows" ]; then            
+          if [ "${{ runner.os }}" != "Windows" ]; then
             echo "Compressed artifact:"
-            ls $(pwd)/gophkeeper-${{ runner.os }}.tar.gz
+            ls "$(pwd)/gophkeeper-${{ runner.os }}.tar.gz"
           fi
 
       - name: Upload build artifact
