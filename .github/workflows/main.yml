@@ -62,13 +62,28 @@ jobs:
           echo "Downloaded artifacts:"
           ls
 
+      - name: Show uploaded artifacts for Linux
+        run: |
+          echo "Uploaded artifacts for Linux:"
+          ls gophkeeper-Linux
+
+      - name: Show uploaded artifacts for Windows
+        run: |
+          echo "Uploaded artifacts for Windows:"
+          ls gophkeeper-Windows
+
+      - name: Show uploaded artifacts for macOS
+        run: |
+          echo "Uploaded artifacts for macOS:"
+          ls gophkeeper-macOS
+
       - name: Upload Release Asset (Ubuntu)
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-Linux.tar.gz
+          asset_path: ./gophkeeper-ubuntu-latest.tar.gz
           asset_name: gophkeeper-ubuntu-latest.tar.gz
           asset_content_type: application/octet-stream
 
@@ -78,7 +93,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-Windows.tar.gz
+          asset_path: ./gophkeeper-windows-latest.tar.gz
           asset_name: gophkeeper-windows-latest.tar.gz
           asset_content_type: application/octet-stream
 
@@ -88,6 +103,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-macOS.tar.gz
+          asset_path: ./gophkeeper-macos-latest.tar.gz
           asset_name: gophkeeper-macos-latest.tar.gz
           asset_content_type: application/octet-stream
