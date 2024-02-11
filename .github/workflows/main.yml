@@ -60,7 +60,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-Linux.tar.gz
+          asset_path: ./gophkeeper-Linux
           asset_name: gophkeeper-Linux
           asset_content_type: application/octet-stream
 
@@ -70,7 +70,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-Windows.tar.gz
+          asset_path: ./gophkeeper-Windows
           asset_name: gophkeeper-Windows
           asset_content_type: application/octet-stream
 
@@ -80,6 +80,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-macOS.tar.gz
+          asset_path: ./gophkeeper-macOS
           asset_name: gophkeeper-macOS
           asset_content_type: application/octet-stream
