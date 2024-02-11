@@ -65,17 +65,17 @@ jobs:
       - name: Show uploaded artifacts for Linux
         run: |
           echo "Uploaded artifacts for Linux:"
-          ls gophkeeper-Linux
+          ls gophkeeper-${{ runner.os }}
 
       - name: Show uploaded artifacts for Windows
         run: |
           echo "Uploaded artifacts for Windows:"
-          ls gophkeeper-Windows
+          ls gophkeeper-${{ runner.os }}
 
       - name: Show uploaded artifacts for macOS
         run: |
           echo "Uploaded artifacts for macOS:"
-          ls gophkeeper-macOS
+          ls gophkeeper-${{ runner.os }}
 
       - name: Upload Release Asset (Ubuntu)
         uses: actions/upload-release-asset@v1
