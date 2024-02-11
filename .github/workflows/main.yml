@@ -31,7 +31,7 @@ jobs:
         run: |
           tar -czf gophkeeper-${{ runner.os }}.tar.gz gophkeeper-${{ runner.os }}
           echo "Compressed artifact:"
-          ls -lh gophkeeper-${{ runner.os }}.tar.gz
+          ls gophkeeper-${{ runner.os }}.tar.gz
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v2
@@ -60,7 +60,7 @@ jobs:
       - name: Show downloaded artifacts
         run: |
           echo "Downloaded artifacts:"
-          ls -lh
+          ls
 
       - name: Upload Release Asset (Ubuntu)
         uses: actions/upload-release-asset@v1
