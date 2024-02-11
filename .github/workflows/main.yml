@@ -28,7 +28,10 @@ jobs:
         run: go build -ldflags "-X main.version=${GITHUB_REF#refs/tags/} -X 'main.buildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o gophkeeper-${{ runner.os }} ./cmd/gophkeeper
 
       - name: Compress artifact
-        run: tar -czf gophkeeper-${{ runner.os }}.tar.gz gophkeeper-${{ runner.os }}
+        run: |
+          tar -czf gophkeeper-${{ runner.os }}.tar.gz gophkeeper-${{ runner.os }}
+          echo "Compressed artifact:"
+          ls -lh gophkeeper-${{ runner.os }}.tar.gz
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v2
@@ -53,6 +56,9 @@ jobs:
 
       - name: Download all artifacts
         uses: actions/download-artifact@v2
+        run: |
+          echo "Downloaded artifacts:"
+          ls -lh
 
       - name: Upload Release Asset (Ubuntu)
         uses: actions/upload-release-asset@v1
