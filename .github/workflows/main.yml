@@ -1,0 +1,38 @@
+name: Build and Release
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        goversion: [1.21]
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.goversion }}
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build -ldflags="-X main.version=${GITHUB_REF#refs/tags/} -X main.buildTime=$(date)" -o myapp-${{ runner.os }}
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./myapp-${{ runner.os }}
+          asset_name: myapp-${{ runner.os }}
+          asset_content_type: application/octet-stream
