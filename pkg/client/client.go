@@ -48,7 +48,7 @@ func NewClient(ctx context.Context, service *services.Service, enc *encription.E
 }
 
 // Start starts the GophKeeper client.
-func (c *Client) Start() {
+func (c *Client) Start(version, buildTime string) {
 	// Root command for Cobra CLI
 	rootCmd := &cobra.Command{
 		Use:           "gophkeeper",
@@ -101,6 +101,8 @@ func (c *Client) Start() {
 	err := rootCmd.Execute()
 	if err != nil {
 		if strings.Contains(err.Error(), "unknown command") {
+			// Вывод информации о версии и времени сборки
+			fmt.Printf("Version: %s\nBuild Time: %s\n", version, buildTime)
 			fmt.Println("Command not found. Here is the list of available commands:")
 			for cmd := range commands {
 				fmt.Println("-", cmd)

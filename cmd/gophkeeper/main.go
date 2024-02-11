@@ -16,6 +16,11 @@ import (
 	"github.com/wurt83ow/gophkeeper-client/pkg/syncinfo"
 )
 
+var (
+	version   string
+	buildTime string
+)
+
 func main() {
 
 	// Initialize encryption as a nil pointer
@@ -94,5 +99,5 @@ func main() {
 	// Initialize and start the client
 	gk := client.NewClient(ctx, service, enc, option, userID, token, sessionStart)
 	defer gk.Close()
-	gk.Start()
+	gk.Start(version, buildTime)
 }
