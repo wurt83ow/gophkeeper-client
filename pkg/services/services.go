@@ -246,7 +246,6 @@ func (s *Service) SyncAllData(ctx context.Context, userID int, update bool) erro
 					}
 				}
 			} else {
-				fmt.Println("test______________________________________________")
 				err = s.keeper.AddData(ctx, table, userID, row["id"], row)
 				if err != nil {
 					s.logger.Printf("Error adding data to table %s: %v", table, err)
