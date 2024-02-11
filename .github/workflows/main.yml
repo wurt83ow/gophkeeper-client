@@ -5,8 +5,8 @@ on:
       - 'v*'
 
 jobs:
-  build:
-    name: Build
+  build_and_release:
+    name: Build and Release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -27,13 +27,10 @@ jobs:
       - name: Build
         run: go build -ldflags "-X main.version=${GITHUB_REF#refs/tags/} -X 'main.buildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o gophkeeper-${{ runner.os }} ./cmd/gophkeeper
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
+        if: matrix.os == 'ubuntu-latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
