@@ -31,7 +31,7 @@ jobs:
         run: |
           tar -czf gophkeeper-${{ runner.os }}.tar.gz gophkeeper-${{ runner.os }}
           echo "Compressed artifact:"
-          ls gophkeeper-${{ runner.os }}.tar.gz
+          ls $(pwd)/gophkeeper-${{ runner.os }}.tar.gz
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v2
@@ -65,17 +65,17 @@ jobs:
       - name: Show uploaded artifacts for Linux
         run: |
           echo "Uploaded artifacts for Linux:"
-          ls ./gophkeeper-Linux.tar.gz
+          ls $(pwd)/gophkeeper-Linux.tar.gz
 
       - name: Show uploaded artifacts for Windows
         run: |
           echo "Uploaded artifacts for Windows:"
-          ls ./gophkeeper-Windows.tar.gz
+          ls $(pwd)/gophkeeper-Windows.tar.gz
 
       - name: Show uploaded artifacts for macOS
         run: |
           echo "Uploaded artifacts for macOS:"
-          ls ./gophkeeper-macOS.tar.gz
+          ls $(pwd)/gophkeeper-macOS.tar.gz
 
       - name: Upload Release Asset (Ubuntu)
         uses: actions/upload-release-asset@v1
