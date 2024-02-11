@@ -27,6 +27,20 @@ jobs:
       - name: Build
         run: go build -ldflags "-X main.version=${GITHUB_REF#refs/tags/} -X 'main.buildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o gophkeeper-${{ runner.os }} ./cmd/gophkeeper
 
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./gophkeeper-${{ runner.os }}
+          asset_name: gophkeeper-${{ runner.os }}
+          asset_content_type: application/octet-stream
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -37,13 +51,3 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-${{ runner.os }}
-          asset_name: gophkeeper-${{ runner.os }}
-          asset_content_type: application/octet-stream
