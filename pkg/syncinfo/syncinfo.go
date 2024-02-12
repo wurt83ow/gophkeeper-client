@@ -14,7 +14,7 @@ type SyncInfo struct {
 
 // SyncManager manages access to and updates of synchronization data.
 type SyncManager struct {
-	fileMutex sync.Mutex       // Mutex to ensure thread safety when working with the file
+	fileMutex sync.RWMutex     // RWMutex to ensure thread safety when working with the file
 	syncData  *MutexedSyncInfo // Synchronization data
 	filename  string           // File name where synchronization data is stored
 }
@@ -26,9 +26,9 @@ type MutexedSyncInfo struct {
 }
 
 // NewSyncManager creates a new SyncManager and initializes a file for storing synchronization data.
-func NewSyncManager() *SyncManager {
-	filename := "syncinfo.dat"
-	file, err := os.OpenFile(filename, os.O_CREATE, 0644)
+func NewSyncManager(fileName string) *SyncManager {
+
+	file, err := os.OpenFile(fileName, os.O_CREATE, 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -36,7 +36,7 @@ func NewSyncManager() *SyncManager {
 
 	return &SyncManager{
 		syncData: &MutexedSyncInfo{},
-		filename: filename,
+		filename: fileName,
 	}
 }
 
@@ -68,8 +68,8 @@ func (sm *SyncManager) SaveSyncInfoToFile() error {
 
 // LoadSyncInfoFromFile loads synchronization data from a file.
 func (sm *SyncManager) LoadSyncInfoFromFile() (time.Time, error) {
-	sm.fileMutex.Lock()
-	defer sm.fileMutex.Unlock()
+	sm.fileMutex.RLock()
+	defer sm.fileMutex.RUnlock()
 
 	fileContent, err := os.ReadFile(sm.filename)
 	if err != nil {

@@ -35,10 +35,10 @@ func main() {
 	option := config.NewConfig(enc)
 
 	// Initialize database keeper
-	keeper := bdkeeper.NewKeeper()
+	keeper := bdkeeper.NewKeeper(nil)
 
 	// Initialize synchronization manager
-	sm := syncinfo.NewSyncManager()
+	sm := syncinfo.NewSyncManager(option.SysInfoPath)
 
 	// Extract session data from file
 	userID, token, sessionStart, err := option.LoadSessionData()

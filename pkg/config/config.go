@@ -21,6 +21,7 @@ type Options struct {
 	SessionDuration time.Duration // SessionDuration represents the duration of a session.
 	CertFilePath    string        // CertFilePath represents the path to the certificate file.
 	KeyFilePath     string        // KeyFilePath represents the path to the key file.
+	SysInfoPath     string        // SysInfoPath represents the path where synchronization data is stored.
 	enc             Encrypt       // enc is an instance implementing the Encrypt interface for encryption operations.
 }
 
@@ -37,6 +38,7 @@ func NewConfig(enc Encrypt) *Options {
 	syncWithServer := flag.Bool("syncWithServer", true, "synchronize with server")
 	certFilePath := flag.String("certFilePath", "server.crt", "certificate file path")
 	keyFilePath := flag.String("keyFilePath", "server.key", "key file path")
+	sysInfoPath := flag.String("sysInfoPath", "syncinfo.dat", "synchronization data file path")
 
 	flag.Parse()
 
@@ -85,6 +87,7 @@ func NewConfig(enc Encrypt) *Options {
 		SessionDuration: time.Minute * 300,
 		CertFilePath:    *certFilePath,
 		KeyFilePath:     *keyFilePath,
+		SysInfoPath:     *sysInfoPath,
 		enc:             enc,
 	}
 }
@@ -92,20 +95,20 @@ func NewConfig(enc Encrypt) *Options {
 // LoadSessionData loads session data from the session.dat file.
 func (o *Options) LoadSessionData() (int, string, time.Time, error) {
 	// Check if the file exists
-	if _, err := os.Stat("session.dat"); os.IsNotExist(err) {
-		return 0, "", time.Time{}, fmt.Errorf("session.dat file does not exist")
+	if _, err := os.Stat(o.SysInfoPath); os.IsNotExist(err) {
+		return 0, "", time.Time{}, fmt.Errorf("%s file does not exist", o.SysInfoPath)
 	}
 
 	// Read the file and split it into lines
-	fileContent, err := os.ReadFile("session.dat")
+	fileContent, err := os.ReadFile(o.SysInfoPath)
 	if err != nil {
-		return 0, "", time.Time{}, fmt.Errorf("error reading session.dat file: %w", err)
+		return 0, "", time.Time{}, fmt.Errorf("error reading %s file: %w", o.SysInfoPath, err)
 	}
 	lines := strings.Split(string(fileContent), "\n")
 
 	// Check if the file contains at least 3 lines
 	if len(lines) < 3 {
-		return 0, "", time.Time{}, errors.New("session.dat file has an invalid format")
+		return 0, "", time.Time{}, errors.New(o.SysInfoPath + " file has an invalid format")
 	}
 
 	// Decrypt the userID

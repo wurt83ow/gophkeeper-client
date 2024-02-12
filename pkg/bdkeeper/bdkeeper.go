@@ -83,66 +83,69 @@ type Keeper struct {
 }
 
 // NewKeeper creates a new instance of Keeper and initializes the database.
-func NewKeeper() *Keeper {
-	db, err := sql.Open("sqlite3", "./data.db")
-	if err != nil {
-		panic(err)
+func NewKeeper(db *sql.DB) *Keeper {
+	if db == nil {
+		var err error
+		db, err = sql.Open("sqlite3", "./data.db")
+		if err != nil {
+			panic(err)
+		}
+
+		// Create the migrations table if it doesn't exist
+		_, err = db.Exec("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY)")
+		if err != nil {
+			panic(err)
+		}
+
+		// Apply migrations
+		files, err := fs.ReadDir(embeddedMigrations, "migrations")
+		if err != nil {
+			panic(err)
+		}
+
+		for _, file := range files {
+			if !file.IsDir() {
+				// Check if the migration has already been applied
+				var name string
+				err = db.QueryRow("SELECT name FROM migrations WHERE name = ?", file.Name()).Scan(&name)
+				if err == sql.ErrNoRows {
+					// The migration has not been applied yet
+					f, err := embeddedMigrations.Open("migrations/" + file.Name())
+					if err != nil {
+						panic(err)
+					}
+					defer f.Close()
+
+					bytes, err := io.ReadAll(f)
+					if err != nil {
+						panic(err)
+					}
+
+					upAndDown := strings.Split(string(bytes), "-- +goose Down")
+					upStatements := strings.Split(upAndDown[0], ";")
+
+					// Run the "up" statements.
+					for _, stmt := range upStatements {
+						if _, err := db.Exec(stmt); err != nil {
+							log.Fatalf("Failed to execute migration %s: %v", file.Name(), err)
+						}
+					}
+
+					// Record the migration as having been applied
+					_, err = db.Exec("INSERT INTO migrations (name) VALUES (?)", file.Name())
+					if err != nil {
+						panic(err)
+					}
+				} else if err != nil {
+					// An error occurred checking if the migration has been applied
+					panic(err)
+				}
+			}
+		}
 	}
 
 	k := &Keeper{
 		db: db,
-	}
-
-	// Create the migrations table if it doesn't exist
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY)")
-	if err != nil {
-		panic(err)
-	}
-
-	// Apply migrations
-	files, err := fs.ReadDir(embeddedMigrations, "migrations")
-	if err != nil {
-		panic(err)
-	}
-
-	for _, file := range files {
-		if !file.IsDir() {
-			// Check if the migration has already been applied
-			var name string
-			err = db.QueryRow("SELECT name FROM migrations WHERE name = ?", file.Name()).Scan(&name)
-			if err == sql.ErrNoRows {
-				// The migration has not been applied yet
-				f, err := embeddedMigrations.Open("migrations/" + file.Name())
-				if err != nil {
-					panic(err)
-				}
-				defer f.Close()
-
-				bytes, err := io.ReadAll(f)
-				if err != nil {
-					panic(err)
-				}
-
-				upAndDown := strings.Split(string(bytes), "-- +goose Down")
-				upStatements := strings.Split(upAndDown[0], ";")
-
-				// Run the "up" statements.
-				for _, stmt := range upStatements {
-					if _, err := db.Exec(stmt); err != nil {
-						log.Fatalf("Failed to execute migration %s: %v", file.Name(), err)
-					}
-				}
-
-				// Record the migration as having been applied
-				_, err = db.Exec("INSERT INTO migrations (name) VALUES (?)", file.Name())
-				if err != nil {
-					panic(err)
-				}
-			} else if err != nil {
-				// An error occurred checking if the migration has been applied
-				panic(err)
-			}
-		}
 	}
 
 	return k
