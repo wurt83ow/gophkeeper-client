@@ -72,6 +72,7 @@ func (sm *SyncManager) LoadSyncInfoFromFile() (time.Time, error) {
 	defer sm.fileMutex.RUnlock()
 
 	fileContent, err := os.ReadFile(sm.filename)
+
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -92,10 +93,17 @@ func (sm *SyncManager) UpdateAndSaveSyncInfo(info SyncInfo) error {
 
 // LoadAndUpdateLastSyncFromFile loads the last synchronization time from a file, updates SyncInfo, and returns it.
 func (sm *SyncManager) LoadAndUpdateLastSyncFromFile() (time.Time, error) {
+
 	sm.fileMutex.Lock()
 	defer sm.fileMutex.Unlock()
 
-	lastSync, err := sm.LoadSyncInfoFromFile()
+	fileContent, err := os.ReadFile(sm.filename)
+
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	lastSync, err := time.Parse(time.RFC3339, string(fileContent))
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -104,4 +112,9 @@ func (sm *SyncManager) LoadAndUpdateLastSyncFromFile() (time.Time, error) {
 	sm.UpdateSyncInfo(SyncInfo{LastSync: lastSync})
 
 	return lastSync, nil
+}
+
+// GetTimeWithoutTimeZone возвращает текущее время без информации о временной зоне.
+func (sm *SyncManager) GetTimeWithoutTimeZone() time.Time {
+	return time.Now().UTC()
 }

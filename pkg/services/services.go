@@ -184,7 +184,6 @@ func (s *Service) SyncAllData(ctx context.Context, userID int, update bool) erro
 		// Load lastSync from file and update SyncInfo
 		var err error
 		lastSync, err = s.sm.LoadAndUpdateLastSyncFromFile()
-
 		if err != nil {
 			s.logger.Printf("lastSync", err)
 			fmt.Printf("Error loading and updating lastSync: %v\n", err)
@@ -195,6 +194,7 @@ func (s *Service) SyncAllData(ctx context.Context, userID int, update bool) erro
 	for _, table := range tables {
 		// Get all data from the table on the server
 		resp, err := s.sync.GetGetAllDataTableUserIDWithResponse(ctx, table, userID, lastSync)
+
 		if err != nil {
 			s.logger.Printf("Error getting data from table %s: %v", table, err)
 		}
@@ -202,6 +202,7 @@ func (s *Service) SyncAllData(ctx context.Context, userID int, update bool) erro
 		if resp == nil || resp.JSON200 == nil {
 			continue
 		}
+
 		if !update {
 			// Clear the corresponding table in the local database
 			err = s.keeper.ClearData(ctx, table, userID)
@@ -256,7 +257,7 @@ func (s *Service) SyncAllData(ctx context.Context, userID int, update bool) erro
 
 	// Create new synchronization information
 	info := syncinfo.SyncInfo{
-		LastSync: time.Now(), // For example, use the current time
+		LastSync: s.sm.GetTimeWithoutTimeZone().Add(-time.Minute * 10),
 	}
 
 	// Update and save synchronization information
@@ -371,12 +372,17 @@ func (s *Service) sendData(ctx context.Context, entry models.SyncQueue) error {
 			if !ok {
 				return errors.New("path not found in entry data")
 			}
-			encryptedFilePath := filepath.Join(s.opt.FileStoragePath, hash)
+			decryptedhash, err := s.enc.Decrypt(hash)
+			if err != nil {
+				return errors.New("decrypte path error")
+			}
+			encryptedFilePath := filepath.Join(s.opt.FileStoragePath, decryptedhash)
 			// Проверяем существование файла
 			if _, err := os.Stat(encryptedFilePath); err != nil {
+
 				return fmt.Errorf("file does not exist at path: %s", encryptedFilePath)
 			}
-			go s.SyncFile(ctx, entry.UserID, encryptedFilePath, hash)
+			go s.SyncFile(ctx, entry.UserID, encryptedFilePath, decryptedhash)
 		}
 		// Обработка создания записи в любой другой таблице (включая "FilesData")
 		_, err := s.sync.PostAddDataTableUserIDEntryIDWithBody(ctx, entry.TableName, entry.UserID, entry.EntryID, "application/json", bodyReader)

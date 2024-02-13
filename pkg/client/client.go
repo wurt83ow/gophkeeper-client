@@ -26,29 +26,50 @@ type ActionFunc func()
 
 // Client represents a GophKeeper client.
 type Client struct {
-	rl           *readline.Instance // Readline instance for user input
-	service      *services.Service  // Service for backend operations
-	enc          *encription.Enc    // Encryption utility
-	opt          *config.Options    // Options for client configuration
-	ctx          context.Context    // Context for client operations
-	userID       int                // User ID of the current user
-	token        string             // Authentication token for the current session
-	sessionStart time.Time          // Start time of the current session
+	rl                     *readline.Instance // Readline instance for user input
+	service                *services.Service  // Service for backend operations
+	enc                    *encription.Enc    // Encryption utility
+	opt                    *config.Options    // Options for client configuration
+	ctx                    context.Context    // Context for client operations
+	userID                 int                // User ID of the current user
+	token                  string             // Authentication token for the current session
+	sessionStart           time.Time          // Start time of the current session
+	getTimeWithoutTimeZone func() time.Time
 }
 
 // NewClient initializes a new GophKeeper client.
 func NewClient(ctx context.Context, service *services.Service, enc *encription.Enc,
-	opt *config.Options, userID int, token string, sessionStart time.Time) *Client {
+	opt *config.Options, userID int, token string, sessionStart time.Time, getTimeWithoutTimeZone func() time.Time) *Client {
 	rl, err := readline.New("> ")
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	return &Client{rl: rl, ctx: ctx, service: service, enc: enc,
-		opt: opt, userID: userID, token: token, sessionStart: sessionStart}
+		opt: opt, userID: userID, token: token, sessionStart: sessionStart, getTimeWithoutTimeZone: getTimeWithoutTimeZone}
 }
 
 // Start starts the GophKeeper client.
 func (c *Client) Start(version, buildTime string) {
+
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				c.service.SyncAllWithServer(c.ctx)
+				err := c.service.SyncAllData(c.ctx, c.userID, true)
+				if err != nil {
+					fmt.Printf("Error synchronizing data: %s\n", err)
+				}
+
+			case <-c.ctx.Done():
+				return
+			}
+		}
+
+	}()
 	// Root command for Cobra CLI
 	rootCmd := &cobra.Command{
 		Use:           "gophkeeper",
@@ -243,6 +264,7 @@ func (c *Client) login() {
 	if err != nil {
 		fmt.Printf("Ошибка при входе в систему: %s\n", err)
 	} else {
+
 		c.userID = userID
 		c.ctx = appcontext.WithJWTToken(c.ctx, token)
 		fmt.Println("Вход в систему прошел успешно!")
@@ -269,7 +291,7 @@ func (c *Client) login() {
 		}
 
 		// Get the current time and convert it to a string
-		c.sessionStart = time.Now()
+		c.sessionStart = c.getTimeWithoutTimeZone()
 
 		// Write userID, token, and session start time to the file
 		err = c.saveSessionData(encryptedUserID, token, c.sessionStart.Format(time.RFC3339))
@@ -282,7 +304,7 @@ func (c *Client) login() {
 
 // saveSessionData saves session data (userID, token, session start time) to a file.
 func (c *Client) saveSessionData(userID, token, sessionStart string) error {
-	err := os.WriteFile("session.dat", []byte(userID+"\n"+token+"\n"+sessionStart), 0600)
+	err := os.WriteFile(c.opt.SessionPath, []byte(userID+"\n"+token+"\n"+sessionStart), 0600)
 	return err
 }
 
@@ -295,7 +317,7 @@ func (c *Client) Logout() {
 func (c *Client) ClearSession() {
 	c.userID = 0
 	c.ctx = context.Background() // Create a new context
-	os.Remove("session.dat")
+	os.Remove(c.opt.SessionPath)
 }
 
 // list displays a list of entries of a specified data type for the current user.
@@ -431,7 +453,6 @@ func (c *Client) getBinaryDataAndSave(tableName string) {
 
 // printAllData prints all entries in a given data set.
 func (c *Client) printAllData(data []map[string]string) {
-	fmt.Println(data)
 	for i, entry := range data {
 		fmt.Printf("#%d: %s\n", i+1, entry["meta_info"])
 	}
@@ -698,9 +719,10 @@ func (c *Client) editLoginPassword() {
 			password = oldData["password"]
 		}
 		return map[string]string{
-			"login":     login,
-			"password":  password,
-			"meta_info": title,
+			"login":      login,
+			"password":   password,
+			"meta_info":  title,
+			"updated_at": c.getTimeWithoutTimeZone().Format(time.RFC3339),
 		}
 	})
 }
@@ -721,8 +743,9 @@ func (c *Client) editTextData() {
 			text = oldData["data"]
 		}
 		return map[string]string{
-			"data":      text,
-			"meta_info": title,
+			"data":       text,
+			"meta_info":  title,
+			"updated_at": c.getTimeWithoutTimeZone().Format(time.RFC3339),
 		}
 	})
 }
@@ -738,7 +761,8 @@ func (c *Client) editBinaryData() {
 			title = oldData["meta_info"]
 		}
 		return map[string]string{
-			"meta_info": title,
+			"meta_info":  title,
+			"updated_at": c.getTimeWithoutTimeZone().Format(time.RFC3339),
 		}
 	})
 }
@@ -773,6 +797,7 @@ func (c *Client) editBankCardData() {
 			"expiration_date": expiryDate,
 			"cvv":             cvv,
 			"meta_info":       title,
+			"updated_at":      c.getTimeWithoutTimeZone().Format(time.RFC3339),
 		}
 	})
 }

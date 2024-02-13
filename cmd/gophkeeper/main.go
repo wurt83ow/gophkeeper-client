@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/wurt83ow/gophkeeper-client/pkg/bdkeeper"
 	"github.com/wurt83ow/gophkeeper-client/pkg/client"
@@ -42,28 +40,14 @@ func main() {
 
 	// Extract session data from file
 	userID, token, sessionStart, err := option.LoadSessionData()
-
 	if err != nil {
 		logger.Printf("Failed to retrieve saved values")
 	}
 
 	// Initialize synchronization client
-	serverURL := option.ServerURL
-
-	// Remove "https://" and "http://" prefixes
-	serverURL = strings.TrimPrefix(serverURL, "https://")
-	serverURL = strings.TrimPrefix(serverURL, "http://")
-
-	// Try HTTPS first
-	httpsURL := "https://" + serverURL
-	sync, clientErr := gksync.NewClientWithResponses(httpsURL, option.CertFilePath, option.KeyFilePath)
-	if clientErr != nil {
-		// If HTTPS connection failed, try HTTP
-		httpURL := "http://" + serverURL
-		sync, clientErr = gksync.NewClientWithResponses(httpURL, "", "")
-		if clientErr != nil {
-			panic(fmt.Sprintf("Failed to create synchronization server: %s", clientErr))
-		}
+	sync, err := gksync.NewClientWithResponses(option.ServerURL)
+	if err != nil {
+		panic("Failed to create synchronization server")
 	}
 
 	// Initialize application services
@@ -78,26 +62,10 @@ func main() {
 	}
 
 	// Start periodic data synchronization with the server
-	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				service.SyncAllWithServer(ctx)
-				err = service.SyncAllData(ctx, userID, true)
-				if err != nil {
-					fmt.Printf("Error synchronizing data: %s\n", err)
-				}
-
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
 
 	// Initialize and start the client
-	gk := client.NewClient(ctx, service, enc, option, userID, token, sessionStart)
+	gk := client.NewClient(ctx, service, enc, option, userID, token, sessionStart, sm.GetTimeWithoutTimeZone)
 	defer gk.Close()
 	gk.Start(version, buildTime)
+
 }

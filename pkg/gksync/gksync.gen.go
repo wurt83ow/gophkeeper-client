@@ -6,7 +6,6 @@ package gksync
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -86,54 +85,25 @@ type Client struct {
 type ClientOption func(*Client) error
 
 // Creates a new Client, with reasonable defaults
-// NewClient creates a new Client, with reasonable defaults
-func NewClient(server string, certFilePath string, keyFilePath string, opts ...ClientOption) (*Client, error) {
-	var httpClient *http.Client
-
-	// If certFilePath is empty, use plain HTTP
-	if certFilePath == "" {
-		httpClient = &http.Client{}
-	} else {
-
-		// Load the client certificate and key pair
-		cert, err := tls.LoadX509KeyPair(certFilePath, keyFilePath)
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to load certificate and key pair: %v", err)
-		}
-
-		// Create a TLS configuration with the client certificate
-		tlsConfig := &tls.Config{
-			Certificates:       []tls.Certificate{cert},
-			InsecureSkipVerify: true, // Add this line
-		}
-
-		// Create an HTTP client with custom TLS configuration
-		httpClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConfig,
-			},
-		}
-	}
-
-	// Create a client with sane default values
+func NewClient(server string, opts ...ClientOption) (*Client, error) {
+	// create a client with sane default values
 	client := Client{
 		Server: server,
-		Client: httpClient,
 	}
-
-	// Mutate client and add all optional params
+	// mutate client and add all optional params
 	for _, o := range opts {
 		if err := o(&client); err != nil {
 			return nil, err
 		}
 	}
-
-	// Ensure the server URL always has a trailing slash
+	// ensure the server URL always has a trailing slash
 	if !strings.HasSuffix(client.Server, "/") {
 		client.Server += "/"
 	}
-
+	// create httpClient, if not already present
+	if client.Client == nil {
+		client.Client = &http.Client{}
+	}
 	return &client, nil
 }
 
@@ -253,6 +223,7 @@ func (c *Client) GetGetAllDataTableUserID(ctx context.Context, table string, use
 	if err != nil {
 		return nil, err
 	}
+
 	req = req.WithContext(ctx)
 	// +++
 	err = c.addTokenToHeader(ctx, req)
@@ -263,6 +234,7 @@ func (c *Client) GetGetAllDataTableUserID(ctx context.Context, table string, use
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
+
 	return c.Client.Do(req)
 }
 
@@ -932,9 +904,8 @@ type ClientWithResponses struct {
 
 // NewClientWithResponses creates a new ClientWithResponses, which wraps
 // Client with return type handling
-func NewClientWithResponses(server string, certFilePath string, keyFilePath string,
-	opts ...ClientOption) (*ClientWithResponses, error) {
-	client, err := NewClient(server, certFilePath, keyFilePath, opts...)
+func NewClientWithResponses(server string, opts ...ClientOption) (*ClientWithResponses, error) {
+	client, err := NewClient(server, opts...)
 	if err != nil {
 		return nil, err
 	}

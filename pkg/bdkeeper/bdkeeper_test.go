@@ -3,7 +3,6 @@ package bdkeeper_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -145,7 +144,6 @@ func TestAddUser_AddsUser(t *testing.T) {
 }
 
 func TestCreateSyncEntry(t *testing.T) {
-	fmt.Println("77777777777777777777777777777777")
 	db, cleanup := setup(t)
 	defer cleanup()
 
@@ -155,7 +153,6 @@ func TestCreateSyncEntry(t *testing.T) {
 	// Create a test synchronization entry
 	err := keeper.CreateSyncEntry(ctx, "Create", "UserCredentials", 1, "entry_id", map[string]string{"key": "value"})
 	if err != nil {
-		fmt.Println("77777777777777777777777777777777", err)
 		t.Fatalf("CreateSyncEntry returned error: %v", err)
 	}
 
@@ -163,10 +160,9 @@ func TestCreateSyncEntry(t *testing.T) {
 	var count int
 	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM SyncQueue WHERE operation = ? AND table_name = ? AND user_id = ? AND entry_id = ?", "Create", "UserCredentials", 1, "entry_id").Scan(&count)
 	if err != nil {
-		fmt.Println("888888888888888888888888888888888888888888888888", err)
 		t.Fatalf("failed to query SyncQueue: %v", err)
 	}
-	fmt.Println("2222222222222222222222222222222222222", count)
+
 	if count != 1 {
 		t.Error("CreateSyncEntry failed to add synchronization entry to the database")
 	}
