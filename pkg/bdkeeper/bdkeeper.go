@@ -445,11 +445,11 @@ func (k *Keeper) ClearData(ctx context.Context, table string, userID int) error 
 	return err
 }
 
-// GetPendingSyncEntries returns all entries from the sync table with status "Pending".
-func (k *Keeper) GetPendingSyncEntries(ctx context.Context) ([]models.SyncQueue, error) {
+// GetSyncEntriesByStatus returns all entries from the sync table with the given status.
+func (k *Keeper) GetSyncEntriesByStatus(ctx context.Context, status string) ([]models.SyncQueue, error) {
 	var entries []models.SyncQueue
-	rows, err := k.db.QueryContext(ctx, "SELECT * FROM SyncQueue WHERE status = 'Pending'")
-
+	query := "SELECT * FROM SyncQueue WHERE status = ?"
+	rows, err := k.db.QueryContext(ctx, query, status)
 	if err != nil {
 		return nil, err
 	}
@@ -464,8 +464,7 @@ func (k *Keeper) GetPendingSyncEntries(ctx context.Context) ([]models.SyncQueue,
 		entries = append(entries, entry)
 	}
 
-	err = rows.Err()
-	if err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 

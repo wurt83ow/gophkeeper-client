@@ -265,7 +265,7 @@ func TestClearData_UserCredentials(t *testing.T) {
 	assert.Empty(t, data)
 }
 
-func TestGetPendingSyncEntries(t *testing.T) {
+func TestGetSyncEntriesByStatus(t *testing.T) {
 	db, cleanup := setup(t)
 	defer cleanup()
 
@@ -280,7 +280,7 @@ func TestGetPendingSyncEntries(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Retrieve pending sync entries
-	entries, err := keeper.GetPendingSyncEntries(ctx)
+	entries, err := keeper.GetSyncEntriesByStatus(ctx, "Pending")
 	assert.NoError(t, err)
 
 	expected := []models.SyncQueue{

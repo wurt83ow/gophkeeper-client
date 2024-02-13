@@ -115,6 +115,27 @@ func (c *Client) Start(version, buildTime string) {
 
 // Close closes the GophKeeper client.
 func (c *Client) Close() {
+	// Получаем записи с статусом "Progress"
+	entries, err := c.service.GetSyncEntriesByStatus(context.Background(), "Progress")
+	if err != nil {
+		// Обработка ошибки
+		fmt.Println("Error retrieving sync entries:", err)
+		return
+	}
+
+	// Если есть записи со статусом "Progress", запрашиваем у пользователя продолжение или прерывание синхронизации
+	if len(entries) > 0 {
+		fmt.Println("There are pending sync entries. Do you want to continue syncing data before closing? (yes/no)")
+
+		// Читаем ответ пользователя
+		choice, _ := c.rl.Readline()
+		if strings.ToLower(choice) == "yes" || strings.ToLower(choice) == "y" {
+			// Продолжаем синхронизацию
+			return
+		}
+	}
+
+	// Закрываем ридлайнер и завершаем выполнение программы
 	c.rl.Close()
 }
 
@@ -526,7 +547,7 @@ func (c *Client) addBinaryData() {
 	}
 
 	// Read and encrypt the file in parts. Save the encrypted data to the file system.
-	encryptedFilePath, hash, err := c.enc.EncryptFile(inputPath, c.opt.FileStoragePath)
+	_, hash, err := c.enc.EncryptFile(inputPath, c.opt.FileStoragePath)
 	if err != nil {
 		fmt.Printf("Failed to encrypt or write file: %s\n", err)
 		return
@@ -547,8 +568,8 @@ func (c *Client) addBinaryData() {
 		return
 	}
 
-	// Send the file to the server in a separate goroutine
-	go c.service.SyncFile(c.ctx, c.userID, encryptedFilePath, fmt.Sprintf("%x", hash))
+	// // Send the file to the server in a separate goroutine
+	// go c.service.SyncFile(c.ctx, c.userID, encryptedFilePath, fmt.Sprintf("%x", hash))
 
 	fmt.Printf("Title: %s, File: %s\n", title, inputPath)
 	fmt.Println("Data added successfully!")

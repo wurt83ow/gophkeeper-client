@@ -283,22 +283,36 @@ func mapsEqual(a, b map[string]string) bool {
 }
 
 // SyncAllWithServer synchronizes all pending data entries with the server.
+func (s *Service) GetSyncEntriesByStatus(ctx context.Context, status string) ([]models.SyncQueue, error) {
+	return s.keeper.GetSyncEntriesByStatus(ctx, status)
+}
+
+// SyncAllWithServer synchronizes all pending data entries with the server.
 func (s *Service) SyncAllWithServer(ctx context.Context) {
-	// Send data to the server
 	// Get all entries from the sync table with status "Pending"
-	entries, err := s.keeper.GetPendingSyncEntries(ctx)
+	entries, err := s.GetSyncEntriesByStatus(ctx, "Pending")
 	if err != nil {
+		s.logger.Printf("Error getting pending sync entries: %v", err)
 		return
 	}
 
 	for _, entry := range entries {
+		// Set the status of the entry to "Progress"
+		err := s.keeper.UpdateSyncEntryStatus(ctx, entry.ID, "Progress")
+		if err != nil {
+			s.logger.Printf("Error updating sync entry status to 'Progress': %v", err)
+			continue
+		}
+
+		// Send data to the server
 		err = s.sendData(ctx, entry)
 
 		// If the request is successful, update the entry status to "Done"
 		if err == nil {
 			err = s.keeper.UpdateSyncEntryStatus(ctx, entry.ID, "Done")
 			if err != nil {
-				return
+				s.logger.Printf("Error updating sync entry status to 'Done': %v", err)
+				continue
 			}
 		} else {
 			// If an error occurs, handle it
@@ -312,6 +326,12 @@ func (s *Service) handleSyncError(ctx context.Context, err error, entry models.S
 	// Log the error
 	s.logger.Printf("Error syncing data: %s\n", err)
 
+	// Update the status of the entry to "Progress" before retrying
+	updateErr := s.keeper.UpdateSyncEntryStatus(ctx, entry.ID, "Progress")
+	if updateErr != nil {
+		s.logger.Printf("Error updating entry status to 'Progress': %s\n", updateErr)
+	}
+
 	// Retry synchronization
 	retryCount := 0
 	for retryCount < 3 {
@@ -323,11 +343,17 @@ func (s *Service) handleSyncError(ctx context.Context, err error, entry models.S
 			if err != nil {
 				s.logger.Printf("Error updating entry status: %s\n", err)
 			}
-			break
+			return // Exit the function after setting status to "Done"
 		} else {
 			retryCount++
 			s.logger.Printf("Error retrying data synchronization: %s\n", err)
 		}
+	}
+
+	// If all retries failed, update the status of the entry to "Error"
+	updateErr = s.keeper.UpdateSyncEntryStatus(ctx, entry.ID, "Error")
+	if updateErr != nil {
+		s.logger.Printf("Error updating entry status to 'Error': %s\n", updateErr)
 	}
 }
 
@@ -336,6 +362,23 @@ func (s *Service) sendData(ctx context.Context, entry models.SyncQueue) error {
 	bodyReader := bytes.NewReader([]byte(entry.Data))
 	switch entry.Operation {
 	case "Create":
+		if entry.TableName == "FilesData" {
+			var data map[string]string
+			if err := json.Unmarshal([]byte(entry.Data), &data); err != nil {
+				return err
+			}
+			hash, ok := data["path"]
+			if !ok {
+				return errors.New("path not found in entry data")
+			}
+			encryptedFilePath := filepath.Join(s.opt.FileStoragePath, hash)
+			// Проверяем существование файла
+			if _, err := os.Stat(encryptedFilePath); err != nil {
+				return fmt.Errorf("file does not exist at path: %s", encryptedFilePath)
+			}
+			go s.SyncFile(ctx, entry.UserID, encryptedFilePath, hash)
+		}
+		// Обработка создания записи в любой другой таблице (включая "FilesData")
 		_, err := s.sync.PostAddDataTableUserIDEntryIDWithBody(ctx, entry.TableName, entry.UserID, entry.EntryID, "application/json", bodyReader)
 		return err
 	case "Update":
