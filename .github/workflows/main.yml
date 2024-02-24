@@ -29,15 +29,15 @@ jobs:
 
       - name: Compress artifact
         run: |
-          upx --best --lzma gophkeeper-${{ runner.os }}
+          tar -czf gophkeeper-${{ runner.os }}.tar.gz gophkeeper-${{ runner.os }}
           echo "Compressed artifact:"
-          ls gophkeeper-${{ runner.os }}
+          ls gophkeeper-${{ runner.os }}.tar.gz
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v2
         with:
           name: gophkeeper-${{ runner.os }}
-          path: ./gophkeeper-${{ runner.os }}
+          path: ./gophkeeper-${{ runner.os }}.tar.gz
 
   release:
     needs: build
@@ -83,8 +83,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-Linux/gophkeeper-Linux
-          asset_name: gophkeeper-Linux
+          asset_path: ./gophkeeper-Linux/gophkeeper-Linux.tar.gz
+          asset_name: gophkeeper-Linux.tar.gz
           asset_content_type: application/octet-stream
 
       - name: Upload Release Asset (Windows)
@@ -93,8 +93,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-Windows/gophkeeper-Windows
-          asset_name: gophkeeper-Windows
+          asset_path: ./gophkeeper-Windows/gophkeeper-Windows.tar.gz
+          asset_name: gophkeeper-Windows.tar.gz
           asset_content_type: application/octet-stream
 
       - name: Upload Release Asset (macOS)
@@ -103,6 +103,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./gophkeeper-macOS/gophkeeper-macOS
-          asset_name: gophkeeper-macOS
+          asset_path: ./gophkeeper-macOS/gophkeeper-macOS.tar.gz
+          asset_name: gophkeeper-macOS.tar.gz
           asset_content_type: application/octet-stream
